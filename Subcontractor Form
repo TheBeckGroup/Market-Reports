@@ -29,7 +29,7 @@
          * pointing to your deployed Google Apps Script Web App URL.
          */
         
-        const GAS_FORM_WEB_APP_URL = 'YOUR_GAS_WEB_APP_URL_HERE';
+        const GAS_FORM_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbybKCDsyhNbn3Wf7KciurAhiQlJD8_1ZeB4ILbZoGtUA1HMpGURuASBF_Zuf0pThymh/exec';
 
         // Example of how you will send data to GAS from GitHub:
         async function submitDataToGAS(formData) {
