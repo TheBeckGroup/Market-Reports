@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing Database</title>
+    <!-- Paste your custom CSS styles here -->
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; max-width: 900px; margin: auto; }
+        .container { background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Database View</h2>
+        
+        <!-- Paste your HTML Database UI/Table here -->
+        <div id="your-custom-ui">
+            <p>Paste your database UI/table here...</p>
+        </div>
+
+    </div>
+
+    <script>
+        // Paste your frontend JavaScript logic here
+
+        /* * MIGRATION GUIDE:
+         * To get data from GAS to GitHub, make a GET request to your GAS Web App URL.
+         */
+        
+        const GAS_DB_WEB_APP_URL = 'YOUR_GAS_WEB_APP_URL_HERE';
+
+        // Example of how you will pull data from GAS to GitHub:
+        async function loadDataFromGAS() {
+            try {
+                const response = await fetch(GAS_DB_WEB_APP_URL);
+                const data = await response.json();
+                
+                console.log('Data loaded successfully:', data);
+                // Call your function to render the data into the table here
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+    </script>
+</body>
+</html>
