@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subcontractor Form</title>
+    <!-- Paste your custom CSS styles here or link to an external stylesheet -->
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+        .container { background: #f9fafb; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Subcontractor Pricing Form</h2>
+        
+        <!-- Paste your HTML form here -->
+        <div id="your-custom-ui">
+            <p>Paste your form UI here...</p>
+        </div>
+
+    </div>
+
+    <script>
+        // Paste your frontend JavaScript logic here
+
+        /* * MIGRATION GUIDE:
+         * Replace any `google.script.run.yourFunction(data)` calls with a `fetch` request
+         * pointing to your deployed Google Apps Script Web App URL.
+         */
+        
+        const GAS_FORM_WEB_APP_URL = 'YOUR_GAS_WEB_APP_URL_HERE';
+
+        // Example of how you will send data to GAS from GitHub:
+        async function submitDataToGAS(formData) {
+            try {
+                const response = await fetch(GAS_FORM_WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(formData),
+                    // If you run into strict CORS issues, you may need to use mode: 'no-cors' 
+                    // or format the body as application/x-www-form-urlencoded
+                });
+                console.log('Successfully submitted!');
+            } catch (error) {
+                console.error('Error submitting form:', error);
+            }
+        }
+    </script>
+</body>
+</html>
