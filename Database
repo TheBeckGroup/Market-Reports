@@ -28,7 +28,7 @@
          * To get data from GAS to GitHub, make a GET request to your GAS Web App URL.
          */
         
-        const GAS_DB_WEB_APP_URL = 'YOUR_GAS_WEB_APP_URL_HERE';
+        const GAS_DB_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxXZB7okK44eokPohm1Cqj5mpjrZEpFClc2immueKvHCtRtKvhsBKZZeogtS0A7-8fQ/exec';
 
         // Example of how you will pull data from GAS to GitHub:
         async function loadDataFromGAS() {
