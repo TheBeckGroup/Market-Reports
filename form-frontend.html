@@ -13,6 +13,8 @@
         input[type="text"], input[type="number"], input[type="email"], select { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 4px; color: #4b5563; font-family: inherit; background-color: #fff; }
         button { background-color: #0033a0; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 20px; transition: background-color 0.2s; }
         button:hover { background-color: #002270; }
+        .btn-add { background-color: transparent; color: #0033a0; border: 1px dashed #0033a0; padding: 8px 16px; font-size: 14px; border-radius: 4px; cursor: pointer; width: auto; margin-top: 5px; margin-bottom: 15px; display: inline-block; transition: background-color 0.2s; }
+        .btn-add:hover { background-color: #f9fafb; }
         h2, h3 { color: #0033a0; }
         hr { border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0; }
         .loading { text-align: center; font-size: 18px; color: #6b7280; }
@@ -58,6 +60,7 @@
 
         let currentPackage = "";
         let fetchedData = null;
+        let customItemCount = 0;
 
         document.addEventListener("DOMContentLoaded", () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -89,6 +92,7 @@
 
         function renderForm(data) {
             let html = `<form id="subcontractor-form">`;
+            customItemCount = 0; // Reset counter on load
 
             // Basic Subcontractor Info
             html += `<h3>Subcontractor Information</h3>`;
@@ -129,6 +133,10 @@
                     </div>`;
                 });
             }
+            
+            // Custom Add Items Container
+            html += `<div id="custom-unit-items"></div>`;
+            html += `<button type="button" class="btn-add" onclick="addCustomUnitItem()">+ Add Custom Item</button>`;
 
             // SECTION 2: LEAD TIMES
             html += `<hr><h3>Lead Times</h3>`;
@@ -183,6 +191,26 @@
             document.getElementById('subcontractor-form').addEventListener('submit', handleFormSubmit);
         }
 
+        // Logic to generate custom input rows
+        function addCustomUnitItem() {
+            const container = document.getElementById('custom-unit-items');
+            const html = `
+            <div class="form-group flex-row" id="custom-item-${customItemCount}" style="border-left: 3px solid #0033a0;">
+                <div class="details" style="display: flex; gap: 10px;">
+                    <input type="text" name="customItemName_${customItemCount}" placeholder="Custom Item Description" required style="flex: 2; margin-top: 0;">
+                    <input type="text" name="customItemUOM_${customItemCount}" placeholder="UOM (e.g. LS, SF)" required style="flex: 1; margin-top: 0;">
+                </div>
+                <div class="input-area">
+                    <div class="input-group" style="margin-top: 0;">
+                        <span class="input-group-addon prefix">$</span>
+                        <input type="number" step="0.01" name="customUnitPrice_${customItemCount}" placeholder="Price" required>
+                    </div>
+                </div>
+            </div>`;
+            container.insertAdjacentHTML('beforeend', html);
+            customItemCount++;
+        }
+
         function getCurrentQuarter() {
             const date = new Date();
             const quarter = Math.floor((date.getMonth() + 3) / 3);
@@ -215,6 +243,22 @@
                     const val = formData.get(`unitPrice_${i}`);
                     if (val) submissionData.unitPricing.push({ ...row, 'SUBMITTED PRICE': val });
                 });
+            }
+
+            // Map Custom Unit Pricing answers added by the subcontractor
+            for (let i = 0; i < customItemCount; i++) {
+                const itemName = formData.get(`customItemName_${i}`);
+                const uom = formData.get(`customItemUOM_${i}`);
+                const price = formData.get(`customUnitPrice_${i}`);
+                
+                if (itemName && uom && price) {
+                    submissionData.unitPricing.push({
+                        'ITEM': itemName,
+                        'UNIT OF MEASURE': uom,
+                        'SUBMITTED PRICE': price,
+                        'BID PACKAGE': currentPackage
+                    });
+                }
             }
 
             // Map Lead Times answers
