@@ -7,10 +7,10 @@
     <!-- Favicon link -->
     <link rel="icon" type="image/png" href="becklogo64.png">
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; background-color: #f3f4f6; color: #374151; }
+        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; background-color: #f3f4f6; color: #4b5563; }
         .container { background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; }
         .form-group { margin-bottom: 15px; padding: 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 4px; }
-        input[type="text"], input[type="number"], input[type="email"] { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 4px; color: #374151; }
+        input[type="text"], input[type="number"], input[type="email"] { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 4px; color: #4b5563; }
         button { background-color: #0033a0; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 20px; transition: background-color 0.2s; }
         button:hover { background-color: #002270; }
         h2, h3 { color: #0033a0; }
@@ -23,7 +23,7 @@
         /* Flexbox classes to put inputs on the right side */
         .flex-row { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
         .flex-row .details { flex: 1; }
-        .flex-row .input-area { flex: 0 1 250px; } /* Input width restricted to 250px */
+        .flex-row .input-area { flex: 0 1 150px; } /* Input width restricted to 150px for numbers */
         
         /* On small phone screens, stack them normally so they aren't crushed */
         @media (max-width: 600px) {
@@ -194,7 +194,7 @@
 
                 if (result.status === "success") {
                     document.getElementById('form-container').innerHTML = `
-                        <div style="text-align: center; color: #374151; margin-top: 20px;">
+                        <div style="text-align: center; color: #4b5563; margin-top: 20px;">
                             <h3 style="color: #0033a0;">Success!</h3>
                             <p>Your pricing for the ${currentPackage} package has been submitted.</p>
                             <a href="index.html" style="color: #0033a0; font-weight: bold; text-decoration: none;">Return to Home</a>
