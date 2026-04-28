@@ -4,49 +4,167 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Subcontractor Form</title>
-     <link rel="icon" type="image/png" href="becklogo.png">
-    <!-- Paste your custom CSS styles here or link to an external stylesheet -->
+    <!-- Favicon link -->
+    <link rel="icon" type="image/png" href="favicon.png">
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-        .container { background: #f9fafb; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; background-color: #f3f4f6; }
+        .container { background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; padding: 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 4px; }
+        input[type="text"], input[type="number"], input[type="email"] { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 4px; }
+        button { background-color: #059669; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 20px; }
+        button:hover { background-color: #047857; }
+        hr { border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0; }
+        .loading { text-align: center; font-size: 18px; color: #6b7280; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Subcontractor Pricing Form</h2>
-        
-        <!-- Paste your HTML form here -->
-        <div id="your-custom-ui">
-            <p>Paste your form UI here...</p>
+        <h2 id="form-title">Loading Form...</h2>
+        <div id="form-container">
+            <p class="loading">Fetching items from the database...</p>
         </div>
-
     </div>
 
     <script>
-        // Paste your frontend JavaScript logic here
+        // === IMPORTANT: PASTE YOUR GOOGLE APPS SCRIPT WEB APP URLS HERE ===
+        const GAS_DB_WEB_APP_URL = 'YOUR_GAS_DATABASE_WEB_APP_URL_HERE'; // The Reader (doGet)
+        const GAS_FORM_WEB_APP_URL = 'YOUR_GAS_FORM_WEB_APP_URL_HERE';   // The Writer (doPost)
 
-        /* * MIGRATION GUIDE:
-         * Replace any `google.script.run.yourFunction(data)` calls with a `fetch` request
-         * pointing to your deployed Google Apps Script Web App URL.
-         */
-        
-        const GAS_FORM_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbybKCDsyhNbn3Wf7KciurAhiQlJD8_1ZeB4ILbZoGtUA1HMpGURuASBF_Zuf0pThymh/exec';
+        let currentPackage = "";
 
-        // Example of how you will send data to GAS from GitHub:
-        async function submitDataToGAS(formData) {
+        document.addEventListener("DOMContentLoaded", () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            currentPackage = urlParams.get('package');
+
+            if (!currentPackage) {
+                document.getElementById('form-container').innerHTML = "<p>Error: No Bid Package selected. Please return to the <a href='index.html'>Landing Page</a>.</p>";
+                document.getElementById('form-title').innerText = "Error";
+                return;
+            }
+
+            document.getElementById('form-title').innerText = `${currentPackage} - Pricing Form`;
+            loadFormData(currentPackage);
+        });
+
+        async function loadFormData(bidPackage) {
+            try {
+                const response = await fetch(`${GAS_DB_WEB_APP_URL}?package=${encodeURIComponent(bidPackage)}`);
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+                renderForm(data);
+            } catch (error) {
+                console.error('Fetch error:', error);
+                document.getElementById('form-container').innerHTML = `<p style="color:red;">Failed to connect to the database. Error: ${error.message}</p>`;
+            }
+        }
+
+        function renderForm(data) {
+            let html = `<form id="subcontractor-form">`;
+
+            // Basic Subcontractor Info
+            html += `<h3>Subcontractor Information</h3>`;
+            html += `
+            <div class="form-group">
+                <label><strong>Company Name</strong></label>
+                <input type="text" name="companyName" required>
+            </div>
+            <div class="form-group">
+                <label><strong>Contact Email</strong></label>
+                <input type="email" name="contactEmail" required>
+            </div>`;
+
+            // SECTION 1: UNIT PRICING
+            html += `<hr><h3>Unit Pricing</h3>`;
+            if (data.unitPricing.length === 0) {
+                html += `<p>No unit pricing items found.</p>`;
+            } else {
+                data.unitPricing.forEach((row, i) => {
+                    html += `
+                    <div class="form-group">
+                        <label><strong>${row['ITEM']}</strong> (${row['UNIT OF MEASURE']})</label><br>
+                        <small>Expected Range: ${row['LOW RANGE']} - ${row['HIGH RANGE']}</small><br>
+                        <input type="number" step="0.01" name="unitPrice_${i}" placeholder="Enter your price" required>
+                        <input type="hidden" name="unitItem_${i}" value="${row['ITEM']}">
+                    </div>`;
+                });
+            }
+
+            // SECTION 2: LEAD TIMES
+            html += `<hr><h3>Lead Times</h3>`;
+            if (data.leadTimes.length === 0) {
+                html += `<p>No lead time items found.</p>`;
+            } else {
+                data.leadTimes.forEach((row, i) => {
+                    html += `
+                    <div class="form-group">
+                        <label><strong>${row['ITEM']}</strong></label><br>
+                        <small>Target: ${row['LEAD TIME (WEEKS)']} Weeks</small><br>
+                        <input type="number" name="leadTime_${i}" placeholder="Your lead time (weeks)" required>
+                        <input type="hidden" name="leadItem_${i}" value="${row['ITEM']}">
+                    </div>`;
+                });
+            }
+
+            // SECTION 3: PRICE ESCALATION
+            html += `<hr><h3>Price Escalation</h3>`;
+            if (data.priceEscalation.length === 0) {
+                html += `<p>No escalation items found.</p>`;
+            } else {
+                data.priceEscalation.forEach((row, i) => {
+                    html += `
+                    <div class="form-group">
+                        <label><strong>${row['ITEM']}</strong></label><br>
+                        <small>Allowed Variance: ${row['PRICE VARIANCE']}</small><br>
+                        <input type="text" name="escalation_${i}" placeholder="Enter your variance" required>
+                        <input type="hidden" name="escalationItem_${i}" value="${row['ITEM']}">
+                    </div>`;
+                });
+            }
+
+            html += `<button type="submit" id="submit-btn">Submit Pricing</button>`;
+            html += `</form>`;
+
+            document.getElementById('form-container').innerHTML = html;
+
+            // Add Event Listener for Submission
+            document.getElementById('subcontractor-form').addEventListener('submit', handleFormSubmit);
+        }
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            btn.innerText = "Submitting...";
+            btn.disabled = true;
+
+            // Gather all data from the form
+            const formData = new FormData(e.target);
+            const submissionData = Object.fromEntries(formData.entries());
+            submissionData.bidPackage = currentPackage; // Attach the package name
+
             try {
                 const response = await fetch(GAS_FORM_WEB_APP_URL, {
                     method: 'POST',
-                    body: JSON.stringify(formData),
-                    // If you run into strict CORS issues, you may need to use mode: 'no-cors' 
-                    // or format the body as application/x-www-form-urlencoded
+                    body: JSON.stringify(submissionData)
                 });
-                console.log('Successfully submitted!');
+                const result = await response.json();
+
+                if (result.status === "success") {
+                    document.getElementById('form-container').innerHTML = `
+                        <div style="text-align: center; color: green; margin-top: 20px;">
+                            <h3>Success!</h3>
+                            <p>Your pricing for the ${currentPackage} package has been submitted.</p>
+                            <a href="index.html" style="color: #2563eb; text-decoration: none;">Return to Home</a>
+                        </div>`;
+                } else {
+                    throw new Error(result.message || "Unknown error");
+                }
             } catch (error) {
-                console.error('Error submitting form:', error);
+                alert("Error submitting form: " + error.message);
+                btn.innerText = "Submit Pricing";
+                btn.disabled = false;
             }
         }
     </script>
 </body>
 </html>
-
