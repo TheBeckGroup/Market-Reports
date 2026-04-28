@@ -5,19 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bid Package Selection</title>
     <!-- Favicon link -->
- <link rel="icon" type="image/png" href="becklogo64">
+    <link rel="icon" type="image/png" href="becklogo64.png">
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; padding: 40px 20px; background-color: #f3f4f6; display: flex; justify-content: center; }
+        body { font-family: system-ui, -apple-system, sans-serif; padding: 40px 20px; background-color: #f3f4f6; display: flex; justify-content: center; color: #374151; }
         .container { background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%; }
-        select { width: 100%; padding: 10px; margin: 20px 0; border: 1px solid #d1d5db; border-radius: 4px; font-size: 16px; }
-        button { background-color: #2563eb; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; }
-        button:hover { background-color: #1d4ed8; }
+        select { width: 100%; padding: 10px; margin: 20px 0; border: 1px solid #d1d5db; border-radius: 4px; font-size: 16px; color: #374151; }
+        button { background-color: #0033a0; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; transition: background-color 0.2s; }
+        button:hover { background-color: #002270; }
+        .header-bar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .header-bar h2 { margin: 0; text-align: left; color: #0033a0; }
+        .header-bar img { height: 50px; width: auto; object-fit: contain; margin-left: 15px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Select Bid Package</h2>
-        <p>Please select the bid package you are pricing below:</p>
+        <div class="header-bar">
+            <h2>Select Bid Package</h2>
+            <img src="becklogo.png" alt="Company Logo">
+        </div>
+        <p style="text-align: left;">Please select the bid package you are pricing below:</p>
         
         <!-- Dropdown starts in a loading state while it fetches from GAS -->
         <select id="package-select">
