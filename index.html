@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bid Package Selection</title>
+    <!-- Favicon link -->
+    <link rel="icon" type="image/png" href="favicon.png">
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; padding: 40px 20px; background-color: #f3f4f6; display: flex; justify-content: center; }
+        .container { background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%; }
+        select { width: 100%; padding: 10px; margin: 20px 0; border: 1px solid #d1d5db; border-radius: 4px; font-size: 16px; }
+        button { background-color: #2563eb; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; }
+        button:hover { background-color: #1d4ed8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Select Bid Package</h2>
+        <p>Please select the bid package you are pricing below:</p>
+        
+        <!-- Dropdown starts in a loading state while it fetches from GAS -->
+        <select id="package-select">
+            <option value="" disabled selected>Loading packages...</option>
+        </select>
+        
+        <button onclick="goToForm()">Continue to Form</button>
+    </div>
+
+    <script>
+        // === IMPORTANT: PASTE YOUR GOOGLE APPS SCRIPT DATABASE WEB APP URL HERE ===
+        const GAS_DB_WEB_APP_URL = 'YOUR_GAS_DATABASE_WEB_APP_URL_HERE';
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            const selectElement = document.getElementById('package-select');
+
+            try {
+                // Fetch data from GAS without a specific ?package parameter
+                const response = await fetch(GAS_DB_WEB_APP_URL);
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+
+                // Clear the loading message
+                selectElement.innerHTML = '<option value="" disabled selected>-- Select a Package --</option>';
+
+                // Populate the dropdown with the unique packages found in the spreadsheet
+                if (data.packages && data.packages.length > 0) {
+                    data.packages.forEach(pkg => {
+                        const option = document.createElement('option');
+                        option.value = pkg;
+                        option.textContent = pkg;
+                        selectElement.appendChild(option);
+                    });
+                } else {
+                    selectElement.innerHTML = '<option value="" disabled selected>No packages found</option>';
+                }
+
+            } catch (error) {
+                console.error('Fetch error:', error);
+                selectElement.innerHTML = '<option value="" disabled selected>Error loading packages</option>';
+            }
+        });
+
+        function goToForm() {
+            const selectedPackage = document.getElementById('package-select').value;
+            if (!selectedPackage) {
+                alert("Please select a Bid Package first.");
+                return;
+            }
+            // Redirect to the dynamic form with the package name in the URL
+            window.location.href = `form-frontend.html?package=${encodeURIComponent(selectedPackage)}`;
+        }
+    </script>
+</body>
+</html>
