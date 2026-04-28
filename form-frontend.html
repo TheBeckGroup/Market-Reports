@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Beck Group</title>
+    <title>Subcontractor Form</title>
     <!-- Favicon link -->
     <link rel="icon" type="image/png" href="becklogo64.png">
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; background-color: #f3f4f6; color: #4b5563; }
         .container { background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; }
         .form-group { margin-bottom: 15px; padding: 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 4px; }
-        input[type="text"], input[type="number"], input[type="email"] { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 4px; color: #4b5563; }
+        input[type="text"], input[type="number"], input[type="email"], select { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 4px; color: #4b5563; font-family: inherit; background-color: #fff; }
         button { background-color: #0033a0; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 20px; transition: background-color 0.2s; }
         button:hover { background-color: #002270; }
         h2, h3 { color: #0033a0; }
@@ -57,6 +57,7 @@
         const GAS_FORM_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzRLhXtHZmk7seDx0jHFsjE3sG9JKII8VXVbxHhCfdArSjhIyiTVedbv7NuT1Xqfl45/exec';   // The Writer (doPost)
 
         let currentPackage = "";
+        let fetchedData = null;
 
         document.addEventListener("DOMContentLoaded", () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -78,6 +79,7 @@
                 const data = await response.json();
 
                 if (data.error) throw new Error(data.error);
+                fetchedData = data;
                 renderForm(data);
             } catch (error) {
                 console.error('Fetch error:', error);
@@ -94,6 +96,15 @@
             <div class="form-group">
                 <label><strong>Company Name</strong></label>
                 <input type="text" name="companyName" required>
+            </div>
+            <div class="form-group">
+                <label><strong>Region</strong></label>
+                <select name="region" required>
+                    <option value="" disabled selected>-- Select a Region --</option>
+                    <option value="Tampa/West Florida">Tampa/West Florida</option>
+                    <option value="Orlando/Central Florida">Orlando/Central Florida</option>
+                    <option value="Miami/Ft. Lauderdale">Miami/Ft. Lauderdale</option>
+                </select>
             </div>`;
 
             // SECTION 1: UNIT PRICING
@@ -172,6 +183,12 @@
             document.getElementById('subcontractor-form').addEventListener('submit', handleFormSubmit);
         }
 
+        function getCurrentQuarter() {
+            const date = new Date();
+            const quarter = Math.floor((date.getMonth() + 3) / 3);
+            return `Q${quarter} ${date.getFullYear()}`;
+        }
+
         async function handleFormSubmit(e) {
             e.preventDefault();
             const btn = document.getElementById('submit-btn');
@@ -180,8 +197,41 @@
 
             // Gather all data from the form
             const formData = new FormData(e.target);
-            const submissionData = Object.fromEntries(formData.entries());
-            submissionData.bidPackage = currentPackage; // Attach the package name
+            
+            // Build a structured payload mapping answers directly back to their original row data
+            const submissionData = {
+                companyName: formData.get('companyName'),
+                region: formData.get('region'),
+                quarter: getCurrentQuarter(),
+                bidPackage: currentPackage,
+                unitPricing: [],
+                leadTimes: [],
+                priceEscalation: []
+            };
+
+            // Map Unit Pricing answers
+            if (fetchedData && fetchedData.unitPricing) {
+                fetchedData.unitPricing.forEach((row, i) => {
+                    const val = formData.get(`unitPrice_${i}`);
+                    if (val) submissionData.unitPricing.push({ ...row, 'SUBMITTED PRICE': val });
+                });
+            }
+
+            // Map Lead Times answers
+            if (fetchedData && fetchedData.leadTimes) {
+                fetchedData.leadTimes.forEach((row, i) => {
+                    const val = formData.get(`leadTime_${i}`);
+                    if (val) submissionData.leadTimes.push({ ...row, 'SUBMITTED LEAD TIME': val });
+                });
+            }
+
+            // Map Price Escalation answers
+            if (fetchedData && fetchedData.priceEscalation) {
+                fetchedData.priceEscalation.forEach((row, i) => {
+                    const val = formData.get(`escalation_${i}`);
+                    if (val) submissionData.priceEscalation.push({ ...row, 'SUBMITTED VARIANCE': val });
+                });
+            }
 
             try {
                 const response = await fetch(GAS_FORM_WEB_APP_URL, {
