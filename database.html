@@ -3,46 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pricing Database</title>
-    <link rel="icon" type="image/png" href="becklogo64">
-    <!-- Paste your custom CSS styles here -->
+    <title>Submissions Database</title>
+    <!-- Favicon link -->
+    <link rel="icon" type="image/png" href="becklogo64.png">
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; max-width: 900px; margin: auto; }
-        .container { background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; background-color: #f3f4f6; color: #4b5563; margin: 0; }
+        .container { background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto; overflow-x: auto; }
+        
+        /* Header Styling */
+        .header-bar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .header-bar h2 { margin: 0; color: #0033a0; font-size: 24px; }
+        .header-bar img { height: 50px; width: auto; object-fit: contain; margin-left: 20px; }
+        
+        /* Controls & Filters */
+        .controls-bar { display: flex; gap: 15px; margin-bottom: 25px; background: #f9fafb; padding: 15px; border-radius: 6px; border: 1px solid #e5e7eb; flex-wrap: wrap; }
+        .control-group { display: flex; flex-direction: column; flex: 1; min-width: 200px; }
+        .control-group label { font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; color: #6b7280; }
+        select { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; color: #4b5563; background-color: #fff; outline: none; }
+        select:focus { border-color: #0033a0; box-shadow: 0 0 0 1px #0033a0; }
+        
+        /* Tabs */
+        .tabs { display: flex; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; gap: 10px; }
+        .tab-btn { background: transparent; color: #6b7280; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; font-size: 16px; transition: color 0.2s; }
+        .tab-btn:hover { color: #0033a0; }
+        .tab-btn.active { color: #0033a0; border-bottom: 3px solid #0033a0; margin-bottom: -2px; }
+        
+        /* Table Styling */
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; font-size: 14px; }
+        th, td { padding: 12px 15px; border: 1px solid #e5e7eb; text-align: left; }
+        th { background-color: #0033a0; color: white; font-weight: 600; white-space: nowrap; }
+        tr:nth-child(even) { background-color: #f9fafb; }
+        tr:hover { background-color: #f3f4f6; }
+        
+        .loading { text-align: center; font-size: 18px; color: #6b7280; padding: 40px; }
+        .no-data { text-align: center; color: #6b7280; padding: 20px; font-style: italic; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Database View</h2>
-        
-        <!-- Paste your HTML Database UI/Table here -->
-        <div id="your-custom-ui">
-            <p>Paste your database UI/table here...</p>
+        <div class="header-bar">
+            <h2>Submissions Database</h2>
+            <img src="becklogo.png" alt="Company Logo">
         </div>
 
+        <div class="controls-bar">
+            <div class="control-group">
+                <label>Filter by Region</label>
+                <select id="filter-region" onchange="applyFilters()">
+                    <option value="">All Regions</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Filter by Package</label>
+                <select id="filter-package" onchange="applyFilters()">
+                    <option value="">All Packages</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Filter by Company</label>
+                <select id="filter-company" onchange="applyFilters()">
+                    <option value="">All Companies</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('unitPricing')">Unit Pricing</button>
+            <button class="tab-btn" onclick="switchTab('leadTimes')">Lead Times</button>
+            <button class="tab-btn" onclick="switchTab('priceEscalation')">Price Escalation</button>
+        </div>
+
+        <div id="data-container" class="table-container">
+            <p class="loading">Fetching database records...</p>
+        </div>
     </div>
 
     <script>
-        // Paste your frontend JavaScript logic here
+        // === IMPORTANT: PASTE YOUR GOOGLE APPS SCRIPT DATABASE WEB APP URL HERE ===
+        const GAS_DB_WEB_APP_URL = 'YOUR_GAS_DATABASE_WEB_APP_URL_HERE'; 
 
-        /* * MIGRATION GUIDE:
-         * To get data from GAS to GitHub, make a GET request to your GAS Web App URL.
-         */
-        
-        const GAS_DB_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxmdnYzBC-mfx1IpGiDUdpAfELNVnJL0oZ5cYKkbxoB_z-IlRBVBLcNyPlAJXTBjJXX/exec';
+        let rawData = { unitPricing: [], leadTimes: [], priceEscalation: [] };
+        let currentTab = 'unitPricing';
 
-        // Example of how you will pull data from GAS to GitHub:
-        async function loadDataFromGAS() {
+        document.addEventListener("DOMContentLoaded", fetchSubmissions);
+
+        async function fetchSubmissions() {
             try {
-                const response = await fetch(GAS_DB_WEB_APP_URL);
+                // Append the ?action=getSubmissions parameter to trigger our new backend logic
+                const response = await fetch(`${GAS_DB_WEB_APP_URL}?action=getSubmissions`);
                 const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
                 
-                console.log('Data loaded successfully:', data);
-                // Call your function to render the data into the table here
-                
+                rawData = data;
+                populateFilters();
+                applyFilters(); // This will also render the table
             } catch (error) {
-                console.error('Error loading data:', error);
+                console.error('Fetch error:', error);
+                document.getElementById('data-container').innerHTML = `<p style="color:red; text-align:center;">Failed to connect to the database. Error: ${error.message}</p>`;
             }
+        }
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            // Update active tab button UI
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            applyFilters(); // Re-render the table for the new tab
+        }
+
+        function populateFilters() {
+            const regions = new Set();
+            const packages = new Set();
+            const companies = new Set();
+
+            // Scrape all tabs to find unique filter values
+            ['unitPricing', 'leadTimes', 'priceEscalation'].forEach(tab => {
+                rawData[tab].forEach(row => {
+                    if (row['REGION']) regions.add(row['REGION']);
+                    if (row['BID PACKAGE']) packages.add(row['BID PACKAGE']);
+                    // Look for company under a few common header names
+                    const company = row['COMPANY'] || row['COMPANY NAME'];
+                    if (company) companies.add(company);
+                });
+            });
+
+            // Populate the dropdowns
+            const addOptions = (set, selectId) => {
+                const select = document.getElementById(selectId);
+                Array.from(set).sort().forEach(val => {
+                    select.insertAdjacentHTML('beforeend', `<option value="${val}">${val}</option>`);
+                });
+            };
+
+            addOptions(regions, 'filter-region');
+            addOptions(packages, 'filter-package');
+            addOptions(companies, 'filter-company');
+        }
+
+        function applyFilters() {
+            const regionFilter = document.getElementById('filter-region').value;
+            const packageFilter = document.getElementById('filter-package').value;
+            const companyFilter = document.getElementById('filter-company').value;
+
+            const currentData = rawData[currentTab];
+            
+            // Filter the array based on dropdown selections
+            const filteredData = currentData.filter(row => {
+                const companyName = row['COMPANY'] || row['COMPANY NAME'] || "";
+                
+                const matchRegion = !regionFilter || row['REGION'] === regionFilter;
+                const matchPackage = !packageFilter || row['BID PACKAGE'] === packageFilter;
+                const matchCompany = !companyFilter || companyName === companyFilter;
+                
+                return matchRegion && matchPackage && matchCompany;
+            });
+
+            renderTable(filteredData);
+        }
+
+        function renderTable(dataArray) {
+            const container = document.getElementById('data-container');
+            
+            if (!dataArray || dataArray.length === 0) {
+                container.innerHTML = "<p class='no-data'>No submissions match your current filters.</p>";
+                return;
+            }
+
+            // Dynamically get all unique columns across the objects
+            let allKeys = new Set();
+            dataArray.forEach(row => Object.keys(row).forEach(k => allKeys.add(k)));
+            let headers = Array.from(allKeys);
+            
+            // Sort columns so the most important info always appears on the left
+            const preferredOrder = ['TIMESTAMP', 'COMPANY', 'COMPANY NAME', 'REGION', 'QUARTER', 'BID PACKAGE', 'ITEM', 'UNIT OF MEASURE'];
+            headers.sort((a, b) => {
+               let indexA = preferredOrder.indexOf(a.toUpperCase());
+               let indexB = preferredOrder.indexOf(b.toUpperCase());
+               if (indexA === -1) indexA = 999;
+               if (indexB === -1) indexB = 999;
+               return indexA - indexB;
+            });
+
+            let html = `<table><thead><tr>`;
+            headers.forEach(h => html += `<th>${h}</th>`);
+            html += `</tr></thead><tbody>`;
+            
+            dataArray.forEach(row => {
+                html += `<tr>`;
+                headers.forEach(h => {
+                    let val = row[h] !== undefined ? row[h] : '';
+                    
+                    // Format currency dynamically if header implies price
+                    if (val !== '' && !isNaN(val) && (h.toUpperCase().includes('PRICE') || h.toUpperCase().includes('COST'))) {
+                        val = '$' + parseFloat(val).toFixed(2);
+                    }
+                    
+                    html += `<td>${val}</td>`;
+                });
+                html += `</tr>`;
+            });
+            
+            html += `</tbody></table>`;
+            container.innerHTML = html;
         }
     </script>
 </body>
