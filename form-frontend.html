@@ -113,10 +113,14 @@
 
             // SECTION 1: UNIT PRICING
             html += `<hr><h3>Unit Pricing</h3>`;
-            if (data.unitPricing.length === 0) {
+            
+            // Add dynamic note for Unit Pricing
+            if (data.unitPricing.note) html += `<p style="margin-top: -10px; margin-bottom: 20px; font-style: italic; color: #4b5563;">${data.unitPricing.note}</p>`;
+
+            if (data.unitPricing.items.length === 0) {
                 html += `<p>No unit pricing items found.</p>`;
             } else {
-                data.unitPricing.forEach((row, i) => {
+                data.unitPricing.items.forEach((row, i) => {
                     html += `
                     <div class="form-group flex-row">
                         <div class="details">
@@ -140,10 +144,14 @@
 
             // SECTION 2: LEAD TIMES
             html += `<hr><h3>Lead Times</h3>`;
-            if (data.leadTimes.length === 0) {
+            
+            // Add dynamic note for Lead Times
+            if (data.leadTimes.note) html += `<p style="margin-top: -10px; margin-bottom: 20px; font-style: italic; color: #4b5563;">${data.leadTimes.note}</p>`;
+
+            if (data.leadTimes.items.length === 0) {
                 html += `<p>No lead time items found.</p>`;
             } else {
-                data.leadTimes.forEach((row, i) => {
+                data.leadTimes.items.forEach((row, i) => {
                     html += `
                     <div class="form-group flex-row">
                         <div class="details">
@@ -162,10 +170,14 @@
 
             // SECTION 3: PRICE ESCALATION
             html += `<hr><h3>Price Escalation</h3>`;
-            if (data.priceEscalation.length === 0) {
+            
+            // Add dynamic note for Price Escalation
+            if (data.priceEscalation.note) html += `<p style="margin-top: -10px; margin-bottom: 20px; font-style: italic; color: #4b5563;">${data.priceEscalation.note}</p>`;
+
+            if (data.priceEscalation.items.length === 0) {
                 html += `<p>No escalation items found.</p>`;
             } else {
-                data.priceEscalation.forEach((row, i) => {
+                data.priceEscalation.items.forEach((row, i) => {
                     html += `
                     <div class="form-group flex-row">
                         <div class="details">
@@ -238,8 +250,8 @@
             };
 
             // Map Unit Pricing answers
-            if (fetchedData && fetchedData.unitPricing) {
-                fetchedData.unitPricing.forEach((row, i) => {
+            if (fetchedData && fetchedData.unitPricing && fetchedData.unitPricing.items) {
+                fetchedData.unitPricing.items.forEach((row, i) => {
                     const val = formData.get(`unitPrice_${i}`);
                     if (val) submissionData.unitPricing.push({ ...row, 'SUBMITTED PRICE': val });
                 });
@@ -262,16 +274,16 @@
             }
 
             // Map Lead Times answers
-            if (fetchedData && fetchedData.leadTimes) {
-                fetchedData.leadTimes.forEach((row, i) => {
+            if (fetchedData && fetchedData.leadTimes && fetchedData.leadTimes.items) {
+                fetchedData.leadTimes.items.forEach((row, i) => {
                     const val = formData.get(`leadTime_${i}`);
                     if (val) submissionData.leadTimes.push({ ...row, 'SUBMITTED LEAD TIME': val });
                 });
             }
 
             // Map Price Escalation answers
-            if (fetchedData && fetchedData.priceEscalation) {
-                fetchedData.priceEscalation.forEach((row, i) => {
+            if (fetchedData && fetchedData.priceEscalation && fetchedData.priceEscalation.items) {
+                fetchedData.priceEscalation.items.forEach((row, i) => {
                     const val = formData.get(`escalation_${i}`);
                     if (val) submissionData.priceEscalation.push({ ...row, 'SUBMITTED VARIANCE': val });
                 });
