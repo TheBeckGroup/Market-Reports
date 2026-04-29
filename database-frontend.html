@@ -1,120 +1,292 @@
-// This acts as your API to READ from the spreadsheet.
-// Deploy as Web App -> Execute as: Me -> Who has access: Anyone
-
-function doGet(e) {
-  try {
-    var requestedPackage = e.parameter.package;
-    var action = e.parameter.action;
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    
-    // NEW LOGIC: Fetch Submissions for the Database UI
-    if (action === 'getSubmissions') {
-      function getSubmissionsData(sheetName) {
-        var sheet = ss.getSheetByName(sheetName);
-        if (!sheet) return [];
-        var data = sheet.getDataRange().getValues();
-        if (data.length <= 1) return []; // Return empty if only headers exist
-        var headers = data.shift(); // Row 1 headers for submissions
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submissions Database</title>
+    <!-- Favicon link -->
+    <link rel="icon" type="image/png" href="becklogo64.png">
+    <!-- Chart.js for Graphical View -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; background-color: #f3f4f6; color: #4b5563; margin: 0; }
+        .container { background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto; overflow-x: auto; }
         
-        return data.map(function(row) {
-          var obj = {};
-          headers.forEach(function(header, i) {
-            if (header) {
-               // Format timestamps cleanly for the dashboard
-               if (Object.prototype.toString.call(row[i]) === '[object Date]') {
-                  obj[header.toString().trim()] = row[i].toLocaleDateString() + ' ' + row[i].toLocaleTimeString();
-               } else {
-                  obj[header.toString().trim()] = row[i];
-               }
+        /* Header Styling */
+        .header-bar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .header-bar h2 { margin: 0; color: #0033a0; font-size: 24px; }
+        .header-bar img { height: 50px; width: auto; object-fit: contain; margin-left: 20px; }
+        
+        /* Controls & Filters */
+        .controls-bar { display: flex; gap: 15px; margin-bottom: 25px; background: #f9fafb; padding: 15px; border-radius: 6px; border: 1px solid #e5e7eb; flex-wrap: wrap; }
+        .control-group { display: flex; flex-direction: column; flex: 1; min-width: 200px; }
+        .control-group label { font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; color: #6b7280; }
+        select { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; color: #4b5563; background-color: #fff; outline: none; }
+        select:focus { border-color: #0033a0; box-shadow: 0 0 0 1px #0033a0; }
+        
+        /* Tabs */
+        .tabs { display: flex; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; gap: 10px; }
+        .tab-btn { background: transparent; color: #6b7280; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; font-size: 16px; transition: color 0.2s; }
+        .tab-btn:hover { color: #0033a0; }
+        .tab-btn.active { color: #0033a0; border-bottom: 3px solid #0033a0; margin-bottom: -2px; }
+        
+        /* Graphical View Container */
+        .chart-container { position: relative; height: 350px; width: 100%; margin-bottom: 40px; display: none; }
+        
+        /* Table Styling */
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; font-size: 14px; }
+        th, td { padding: 12px 15px; border: 1px solid #e5e7eb; text-align: left; }
+        th { background-color: #0033a0; color: white; font-weight: 600; white-space: nowrap; }
+        tr:nth-child(even) { background-color: #f9fafb; }
+        tr:hover { background-color: #f3f4f6; }
+        
+        .loading { text-align: center; font-size: 18px; color: #6b7280; padding: 40px; }
+        .no-data { text-align: center; color: #6b7280; padding: 20px; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-bar">
+            <h2>Submissions Dashboard</h2>
+            <img src="becklogo.png" alt="Company Logo">
+        </div>
+
+        <div class="controls-bar">
+            <div class="control-group">
+                <label>Filter by Region</label>
+                <select id="filter-region" onchange="applyFilters()">
+                    <option value="">All Regions</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Filter by Package</label>
+                <select id="filter-package" onchange="applyFilters()">
+                    <option value="">All Packages</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Filter by Company</label>
+                <select id="filter-company" onchange="applyFilters()">
+                    <option value="">All Companies</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('unitPricing')">Unit Pricing</button>
+            <button class="tab-btn" onclick="switchTab('leadTimes')">Lead Times</button>
+            <button class="tab-btn" onclick="switchTab('priceEscalation')">Price Escalation</button>
+        </div>
+
+        <!-- Graphical Chart Area -->
+        <div class="chart-container" id="chart-wrapper">
+            <canvas id="dataChart"></canvas>
+        </div>
+
+        <div id="data-container" class="table-container">
+            <p class="loading">Fetching database records...</p>
+        </div>
+    </div>
+
+    <script>
+        // === IMPORTANT: PASTE YOUR GOOGLE APPS SCRIPT DATABASE WEB APP URL HERE ===
+        const GAS_DB_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxmdnYzBC-mfx1IpGiDUdpAfELNVnJL0oZ5cYKkbxoB_z-IlRBVBLcNyPlAJXTBjJXX/exec'; 
+
+        let rawData = { unitPricing: [], leadTimes: [], priceEscalation: [] };
+        let currentTab = 'unitPricing';
+        let myChart = null; // Store chart instance
+
+        document.addEventListener("DOMContentLoaded", fetchSubmissions);
+
+        async function fetchSubmissions() {
+            try {
+                const response = await fetch(`${GAS_DB_WEB_APP_URL}?action=getSubmissions`);
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+                
+                rawData = data;
+                populateFilters();
+                applyFilters(); 
+            } catch (error) {
+                console.error('Fetch error:', error);
+                document.getElementById('data-container').innerHTML = `<p style="color:red; text-align:center;">Failed to connect to the database. Error: ${error.message}</p>`;
             }
-          });
-          return obj;
-        });
-      }
-      
-      var payload = {
-        unitPricing: getSubmissionsData("SUBMISSIONS_UNIT PRICING"),
-        leadTimes: getSubmissionsData("SUBMISSIONS_LEAD TIMES"),
-        priceEscalation: getSubmissionsData("SUBMISSIONS_PRICE ESCALATION")
-      };
-      
-      return ContentService.createTextOutput(JSON.stringify(payload))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
-    // LOGIC: If no specific package is requested, return a list of unique packages for the landing page
-    if (!requestedPackage) {
-      var sheet = ss.getSheetByName("UNIT PRICING"); 
-      if (!sheet) throw new Error("UNIT PRICING tab not found.");
-      
-      var data = sheet.getDataRange().getValues();
-      data.shift(); // Skip Row 1 (The Note)
-      var headers = data.shift(); // Row 2 (The Headers)
-      var packageColIndex = headers.indexOf("BID PACKAGE");
-      
-      if (packageColIndex === -1) throw new Error("Could not find 'BID PACKAGE' column.");
-      
-      var uniquePackages = [];
-      var packageSet = new Set();
-      
-      data.forEach(function(row) {
-        var pkg = row[packageColIndex];
-        if (pkg && pkg.toString().trim() !== "") {
-          packageSet.add(pkg.toString().trim());
         }
-      });
-      
-      uniquePackages = Array.from(packageSet);
-      
-      return ContentService.createTextOutput(JSON.stringify({ packages: uniquePackages }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
 
-    // LOGIC: If a package IS requested, fetch its specific items and notes
-    function getFilteredData(sheetName) {
-      var sheet = ss.getSheetByName(sheetName);
-      if (!sheet) return { note: "", items: [] }; 
-      
-      var data = sheet.getDataRange().getValues();
-      var noteRow = data.shift(); // Row 1 is now exclusively the Note
-      var note = noteRow && noteRow[0] ? noteRow[0].toString().trim() : "";
-      
-      var headers = data.shift(); // Row 2 is the actual Headers
-      
-      var formattedData = data.map(function(row) {
-        var obj = {};
-        headers.forEach(function(header, i) {
-          if (header) obj[header.toString().trim()] = row[i];
-        });
-        return obj;
-      });
-      
-      var filteredItems = formattedData.filter(function(row) {
-        return row['BID PACKAGE'] === requestedPackage;
-      });
-      
-      return { note: note, items: filteredItems };
-    }
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            applyFilters(); 
+        }
 
-    // Return the payload with notes and items separated cleanly
-    var payload = {
-      bidPackage: requestedPackage,
-      unitPricing: getFilteredData("UNIT PRICING"),
-      leadTimes: getFilteredData("LEAD TIMES"),
-      priceEscalation: getFilteredData("PRICE ESCALATION")
-    };
+        function populateFilters() {
+            const regions = new Set();
+            const packages = new Set();
+            const companies = new Set();
 
-    return ContentService.createTextOutput(JSON.stringify(payload))
-      .setMimeType(ContentService.MimeType.JSON);
-      
-  } catch (error) {
-     return ContentService.createTextOutput(JSON.stringify({"error": error.toString()}))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
+            ['unitPricing', 'leadTimes', 'priceEscalation'].forEach(tab => {
+                rawData[tab].forEach(row => {
+                    if (row['REGION']) regions.add(row['REGION']);
+                    if (row['BID PACKAGE']) packages.add(row['BID PACKAGE']);
+                    const company = row['COMPANY'] || row['COMPANY NAME'];
+                    if (company) companies.add(company);
+                });
+            });
 
-// Required to handle complex CORS requests properly
-function doOptions(e) {
-  return ContentService.createTextOutput("")
-    .setMimeType(ContentService.MimeType.JSON);
-}
+            const addOptions = (set, selectId) => {
+                const select = document.getElementById(selectId);
+                Array.from(set).sort().forEach(val => {
+                    select.insertAdjacentHTML('beforeend', `<option value="${val}">${val}</option>`);
+                });
+            };
+
+            addOptions(regions, 'filter-region');
+            addOptions(packages, 'filter-package');
+            addOptions(companies, 'filter-company');
+        }
+
+        function applyFilters() {
+            const regionFilter = document.getElementById('filter-region').value;
+            const packageFilter = document.getElementById('filter-package').value;
+            const companyFilter = document.getElementById('filter-company').value;
+
+            const currentData = rawData[currentTab];
+            
+            const filteredData = currentData.filter(row => {
+                const companyName = row['COMPANY'] || row['COMPANY NAME'] || "";
+                const matchRegion = !regionFilter || row['REGION'] === regionFilter;
+                const matchPackage = !packageFilter || row['BID PACKAGE'] === packageFilter;
+                const matchCompany = !companyFilter || companyName === companyFilter;
+                
+                return matchRegion && matchPackage && matchCompany;
+            });
+
+            renderChart(filteredData);
+            renderTable(filteredData);
+        }
+
+        function renderChart(dataArray) {
+            const chartWrapper = document.getElementById('chart-wrapper');
+            const ctx = document.getElementById('dataChart').getContext('2d');
+            
+            if (myChart) myChart.destroy(); // Clear existing chart
+
+            if (!dataArray || dataArray.length === 0) {
+                chartWrapper.style.display = 'none';
+                return;
+            }
+            
+            chartWrapper.style.display = 'block';
+
+            // Group data by ITEM and calculate averages
+            const grouped = {};
+            dataArray.forEach(row => {
+                const item = row['ITEM'] || 'Unknown Item';
+                if (!grouped[item]) grouped[item] = { count: 0, sum1: 0, sum2: 0 };
+                
+                grouped[item].count++;
+                
+                if (currentTab === 'unitPricing') {
+                    grouped[item].sum1 += parseFloat(row['SUBMITTED LOW PRICE']) || 0;
+                    grouped[item].sum2 += parseFloat(row['SUBMITTED HIGH PRICE']) || 0;
+                } else if (currentTab === 'leadTimes') {
+                    grouped[item].sum1 += parseFloat(row['SUBMITTED LEAD TIME']) || 0;
+                } else if (currentTab === 'priceEscalation') {
+                    grouped[item].sum1 += parseFloat(row['SUBMITTED VARIANCE']) || 0;
+                }
+            });
+
+            const labels = Object.keys(grouped);
+            const datasets = [];
+
+            if (currentTab === 'unitPricing') {
+                datasets.push({
+                    label: 'Average Low Price ($)',
+                    data: labels.map(l => (grouped[l].sum1 / grouped[l].count).toFixed(2)),
+                    backgroundColor: '#4b5563' // Dark Gray
+                });
+                datasets.push({
+                    label: 'Average High Price ($)',
+                    data: labels.map(l => (grouped[l].sum2 / grouped[l].count).toFixed(2)),
+                    backgroundColor: '#0033a0' // Company Blue
+                });
+            } else if (currentTab === 'leadTimes') {
+                datasets.push({
+                    label: 'Average Lead Time (Weeks)',
+                    data: labels.map(l => (grouped[l].sum1 / grouped[l].count).toFixed(1)),
+                    backgroundColor: '#0033a0' 
+                });
+            } else if (currentTab === 'priceEscalation') {
+                datasets.push({
+                    label: 'Average Price Variance (%)',
+                    data: labels.map(l => (grouped[l].sum1 / grouped[l].count).toFixed(2)),
+                    backgroundColor: '#0033a0'
+                });
+            }
+
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function renderTable(dataArray) {
+            const container = document.getElementById('data-container');
+            
+            if (!dataArray || dataArray.length === 0) {
+                container.innerHTML = "<p class='no-data'>No submissions match your current filters.</p>";
+                return;
+            }
+
+            let allKeys = new Set();
+            dataArray.forEach(row => Object.keys(row).forEach(k => allKeys.add(k)));
+            let headers = Array.from(allKeys);
+            
+            const preferredOrder = ['TIMESTAMP', 'COMPANY', 'COMPANY NAME', 'REGION', 'QUARTER', 'BID PACKAGE', 'ITEM', 'UNIT OF MEASURE'];
+            headers.sort((a, b) => {
+               let indexA = preferredOrder.indexOf(a.toUpperCase());
+               let indexB = preferredOrder.indexOf(b.toUpperCase());
+               if (indexA === -1) indexA = 999;
+               if (indexB === -1) indexB = 999;
+               return indexA - indexB;
+            });
+
+            let html = `<table><thead><tr>`;
+            headers.forEach(h => html += `<th>${h}</th>`);
+            html += `</tr></thead><tbody>`;
+            
+            dataArray.forEach(row => {
+                html += `<tr>`;
+                headers.forEach(h => {
+                    let val = row[h] !== undefined ? row[h] : '';
+                    
+                    if (val !== '' && !isNaN(val) && (h.toUpperCase().includes('PRICE') || h.toUpperCase().includes('COST'))) {
+                        val = '$' + parseFloat(val).toFixed(2);
+                    }
+                    
+                    html += `<td>${val}</td>`;
+                });
+                html += `</tr>`;
+            });
+            
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
