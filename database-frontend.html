@@ -8,6 +8,7 @@
     <link rel="icon" type="image/png" href="becklogo64.png">
     <!-- Chart.js for Graphical View -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; background-color: #f3f4f6; color: #4b5563; margin: 0; padding: 0; height: 100vh; overflow: hidden; }
         
@@ -104,7 +105,7 @@
                 <div class="header-bar">
                     <div class="header-title-group">
                         <button class="toggle-btn mobile-toggle" onclick="toggleSidebar()" title="Open Menu">☰</button>
-                        <h2>Market Conditions</h2>
+                        <h2 id="dashboard-title">Market Conditions</h2>
                     </div>
                     <img src="becklogo.png" alt="Company Logo">
                 </div>
@@ -253,8 +254,16 @@
             const chartWrapper = document.getElementById('chart-wrapper');
             const placeholder = document.getElementById('chart-placeholder');
             const ctx = document.getElementById('dataChart').getContext('2d');
+            const titleEl = document.getElementById('dashboard-title');
             
             if (myChart) myChart.destroy();
+
+            // Dynamic Title Updating
+            if (activePackageFilter && activeItemFilter) {
+                titleEl.textContent = `${activePackageFilter} - ${activeItemFilter}`;
+            } else {
+                titleEl.textContent = 'Market Conditions';
+            }
 
             // ENFORCE 1-ITEM RULE: If no item is specifically selected, hide chart and prompt the user.
             if (!activeItemFilter) {
@@ -354,7 +363,8 @@
                     label: 'Low Range',
                     data: lowData,
                     backgroundColor: '#4b5563', 
-                    borderColor: '#4b5563'
+                    borderColor: '#4b5563',
+                    datalabels: { align: 'bottom', anchor: 'start' }
                 });
                 datasets.push({
                     type: 'line',
@@ -364,21 +374,24 @@
                     label: 'High Range',
                     data: highData,
                     backgroundColor: '#0033a0', 
-                    borderColor: '#0033a0'
+                    borderColor: '#0033a0',
+                    datalabels: { align: 'top', anchor: 'end' }
                 });
             } else if (currentTab === 'leadTimes') {
                 datasets.push({
                     type: 'bar',
                     label: 'Lead Time',
                     data: leadData,
-                    backgroundColor: '#0033a0' 
+                    backgroundColor: '#0033a0',
+                    datalabels: { align: 'top', anchor: 'end' }
                 });
             } else if (currentTab === 'priceEscalation') {
                 datasets.push({
                     type: 'bar',
                     label: 'Price Variance',
                     data: varData,
-                    backgroundColor: '#0033a0'
+                    backgroundColor: '#0033a0',
+                    datalabels: { align: 'top', anchor: 'end' }
                 });
             }
 
@@ -399,10 +412,23 @@
             myChart = new Chart(ctx, {
                 type: 'bar', // Base type, overridden by unitPricing datasets
                 data: { labels, datasets },
+                plugins: [ChartDataLabels],
                 options: {
+                    layout: {
+                        padding: { top: 35, bottom: 20 } // Prevents datalabels from clipping off the canvas edges
+                    },
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
+                        datalabels: {
+                            color: '#4b5563',
+                            font: { weight: 'bold', size: 11 },
+                            formatter: function(value, context) {
+                                if (currentTab === 'unitPricing') return '$' + value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                if (currentTab === 'priceEscalation') return value + '%';
+                                if (currentTab === 'leadTimes') return value + ' Wks';
+                            }
+                        },
                         legend: { display: false }, // Legend removed as requested
                         tooltip: {
                             callbacks: {
