@@ -3,44 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subcontractor Form</title>
+    <title>Pricing Submission Form</title>
     <!-- Favicon link -->
     <link rel="icon" type="image/png" href="becklogo64.png">
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; background-color: #f3f4f6; color: #4b5563; }
-        .container { background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; }
-        .form-group { margin-bottom: 15px; padding: 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 4px; }
-        input[type="text"], input[type="number"], input[type="email"], select { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 4px; color: #4b5563; font-family: inherit; background-color: #fff; }
-        button { background-color: #0033a0; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 20px; transition: background-color 0.2s; }
-        button:hover { background-color: #002270; }
-        .btn-add { background-color: transparent; color: #0033a0; border: 1px dashed #0033a0; padding: 8px 16px; font-size: 14px; border-radius: 4px; cursor: pointer; width: auto; margin-top: 5px; margin-bottom: 15px; display: inline-block; transition: background-color 0.2s; }
-        .btn-add:hover { background-color: #f9fafb; }
-        h2, h3 { color: #0033a0; }
-        hr { border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0; }
-        .loading { text-align: center; font-size: 18px; color: #6b7280; }
-        .header-bar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-        .header-bar h2 { margin: 0; }
-        .header-bar img { height: 50px; width: auto; object-fit: contain; margin-left: 20px; }
+        body { font-family: system-ui, -apple-system, sans-serif; padding: 40px 20px; background-color: #f3f4f6; color: #4b5563; }
+        .container { background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; position: relative; }
+        .header-bar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 2px solid #e5e7eb; padding-bottom: 15px; }
+        .header-bar h2 { margin: 0; color: #0033a0; font-size: 24px; }
+        .header-bar img { height: 50px; width: auto; object-fit: contain; }
         
-        /* Flexbox classes to put inputs on the right side */
-        .flex-row { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
-        .flex-row .details { flex: 1; }
-        .flex-row .input-area { flex: 0 1 150px; } /* Input width restricted to 150px for numbers */
-        .flex-row .input-area.double { flex: 0 1 320px; } /* Wider to fit two inputs */
+        h3 { color: #0033a0; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-top: 30px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group.flex-row { display: flex; align-items: center; gap: 20px; border-bottom: 1px solid #f3f4f6; padding-bottom: 15px; position: relative; }
+        .form-group.flex-row:last-child { border-bottom: none; }
         
-        /* On small phone screens, stack them normally so they aren't crushed */
-        @media (max-width: 600px) {
-            .flex-row { flex-direction: column; align-items: stretch; gap: 5px; }
-            .flex-row .input-area { flex: auto; }
-        }
+        .details { flex: 1; min-width: 0; }
+        .input-area { flex: 1; min-width: 0; }
+        .input-area.double { flex: 2; }
         
-        /* Input Group for sleek grey prefix/suffix boxes */
-        .input-group { display: flex; align-items: stretch; width: 100%; border: 1px solid #d1d5db; border-radius: 4px; overflow: hidden; margin-top: 5px; background: #fff; }
-        .input-group:focus-within { border-color: #0033a0; outline: 1px solid #0033a0; }
-        .input-group-addon { background-color: #e5e7eb; color: #4b5563; padding: 8px 12px; display: flex; align-items: center; justify-content: center; font-size: 14px; white-space: nowrap; }
-        .input-group-addon.prefix { border-right: 1px solid #d1d5db; }
-        .input-group-addon.suffix { border-left: 1px solid #d1d5db; }
-        .input-group input { border: none !important; border-radius: 0 !important; margin-top: 0 !important; flex: 1; min-width: 0; outline: none; padding: 8px; box-shadow: none !important; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 14px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
+        input:focus, select:focus { border-color: #0033a0; outline: none; box-shadow: 0 0 0 2px rgba(0,51,160,0.1); }
         
         /* Hide number input spinners (arrows) */
         input[type="number"]::-webkit-outer-spin-button,
@@ -52,88 +36,122 @@
             -moz-appearance: textfield;
         }
 
-        /* Custom Delete Button */
-        .btn-delete { background: none; border: none; color: #ef4444; font-size: 12px; cursor: pointer; padding: 5px; margin-top: 5px; font-weight: bold; text-transform: uppercase; }
-        .btn-delete:hover { text-decoration: underline; background: none; }
+        .input-group { display: flex; align-items: center; background: #fff; border: 1px solid #d1d5db; border-radius: 4px; overflow: hidden; margin-top: 5px; }
+        .input-group-addon { background: #f3f4f6; padding: 10px 12px; color: #6b7280; font-size: 13px; font-weight: bold; white-space: nowrap; }
+        .input-group-addon.prefix { border-right: 1px solid #d1d5db; }
+        .input-group-addon.suffix { border-left: 1px solid #d1d5db; }
+        .input-group input { border: none !important; border-radius: 0 !important; margin-top: 0 !important; flex: 1; min-width: 0; outline: none; padding: 8px; box-shadow: none !important; }
+        
+        button { background-color: #0033a0; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; font-weight: bold; }
+        button:hover { background-color: #002270; }
+        
+        .btn-add { background-color: #f3f4f6; color: #0033a0; border: 1px dashed #0033a0; padding: 8px 16px; font-size: 13px; margin-top: 10px; }
+        .btn-add:hover { background-color: #e5e7eb; }
+
+        .btn-delete { background: none; border: none; color: #ef4444; font-size: 18px; cursor: pointer; padding: 0 5px; position: absolute; right: -30px; top: 50%; transform: translateY(-50%); transition: transform 0.2s; line-height: 1; }
+        .btn-delete:hover { transform: translateY(-50%) scale(1.2); }
+        
+        .loading { font-style: italic; color: #6b7280; padding: 20px; text-align: center; }
+        #submit-btn { margin-top: 40px; width: 100%; font-size: 18px; padding: 15px; }
+
+        .custom-item-row { background: #f9fafb; padding: 15px; border-radius: 6px; margin-bottom: 10px; }
+
+        @media (max-width: 600px) {
+            .form-group.flex-row { flex-direction: column; align-items: stretch; gap: 10px; }
+            .btn-delete { right: 0; top: 10px; transform: none; }
+            .btn-delete:hover { transform: scale(1.2); }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header-bar">
-            <h2 id="form-title">Loading Form...</h2>
+            <div style="flex:1">
+                <h2>Market Condition Pricing</h2>
+                <p id="package-name" style="margin: 5px 0 0 0; font-weight: bold; color: #4b5563;"></p>
+            </div>
             <img src="becklogo.png" alt="Company Logo">
         </div>
-        <div id="form-container">
-            <p class="loading">Fetching items from the database...</p>
-        </div>
+
+        <form id="pricing-form">
+            <input type="hidden" id="hidden-package" name="bidPackage">
+            <input type="hidden" id="hidden-quarter" name="quarter">
+
+            <div class="form-group" style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <label>Subcontractor Company Name *</label>
+                    <input type="text" name="companyName" placeholder="Enter company name" required>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label>Region *</label>
+                    <select name="region" required>
+                        <option value="" disabled selected>-- Select Region --</option>
+                        <option value="Tampa/West Florida">Tampa/West Florida</option>
+                        <option value="South Florida">South Florida</option>
+                        <option value="Central Florida">Central Florida</option>
+                        <option value="North Florida">North Florida</option>
+                        <option value="Atlanta">Atlanta</option>
+                        <option value="Dallas">Dallas</option>
+                        <option value="Fort Worth">Fort Worth</option>
+                        <option value="Austin">Austin</option>
+                        <option value="Houston">Houston</option>
+                        <option value="Denver">Denver</option>
+                        <option value="Monterrey">Monterrey</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="form-content" class="loading">Loading bid package items...</div>
+            
+            <h3>Additional Items (Optional)</h3>
+            <p style="font-size: 13px; margin-bottom: 15px;">Include any specific items or custom scopes not listed above.</p>
+            <div id="custom-unit-items"></div>
+            <button type="button" class="btn-add" onclick="addCustomUnitItem()">+ Add Custom Item</button>
+
+            <div id="submit-container"></div>
+        </form>
     </div>
 
     <script>
-        // === IMPORTANT: PASTE YOUR GOOGLE APPS SCRIPT WEB APP URLS HERE ===
-        const GAS_DB_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxmdnYzBC-mfx1IpGiDUdpAfELNVnJL0oZ5cYKkbxoB_z-IlRBVBLcNyPlAJXTBjJXX/exec'; // The Reader (doGet)
-        const GAS_FORM_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzRLhXtHZmk7seDx0jHFsjE3sG9JKII8VXVbxHhCfdArSjhIyiTVedbv7NuT1Xqfl45/exec';   // The Writer (doPost)
-
-        let currentPackage = "";
-        let fetchedData = null;
+        const GAS_DB_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxmdnYzBC-mfx1IpGiDUdpAfELNVnJL0oZ5cYKkbxoB_z-IlRBVBLcNyPlAJXTBjJXX/exec';
         let customItemCount = 0;
 
-        document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener("DOMContentLoaded", async () => {
             const urlParams = new URLSearchParams(window.location.search);
-            currentPackage = urlParams.get('package');
+            const packageName = urlParams.get('package');
 
-            if (!currentPackage) {
-                document.getElementById('form-container').innerHTML = "<p>Error: No Bid Package selected. Please return to the <a href='index.html'>Landing Page</a>.</p>";
-                document.getElementById('form-title').innerText = "Error";
+            if (!packageName) {
+                document.getElementById('form-content').innerHTML = '<p style="color:red;">Error: No Bid Package selected. Please return to the selection page.</p>';
                 return;
             }
 
-            document.getElementById('form-title').innerText = `${currentPackage} - Pricing Form`;
-            loadFormData(currentPackage);
-        });
+            document.getElementById('package-name').textContent = "Package: " + packageName;
+            document.getElementById('hidden-package').value = packageName;
+            document.getElementById('hidden-quarter').value = getCurrentQuarter();
 
-        async function loadFormData(bidPackage) {
             try {
-                const response = await fetch(`${GAS_DB_WEB_APP_URL}?package=${encodeURIComponent(bidPackage)}`);
+                const response = await fetch(`${GAS_DB_WEB_APP_URL}?package=${encodeURIComponent(packageName)}`);
                 const data = await response.json();
 
                 if (data.error) throw new Error(data.error);
-                fetchedData = data;
-                renderForm(data);
+                renderFormFields(data);
             } catch (error) {
                 console.error('Fetch error:', error);
-                document.getElementById('form-container').innerHTML = `<p style="color:red;">Failed to connect to the database. Error: ${error.message}</p>`;
+                document.getElementById('form-content').innerHTML = '<p style="color:red;">Failed to load items. Error: ' + error.message + '</p>';
             }
-        }
+        });
 
-        function renderForm(data) {
-            let html = `<form id="subcontractor-form">`;
-            customItemCount = 0; // Reset counter on load
+        function renderFormFields(data) {
+            const container = document.getElementById('form-content');
+            container.innerHTML = "";
+            container.classList.remove('loading');
 
-            // Basic Subcontractor Info
-            html += `<h3>Subcontractor Information</h3>`;
-            html += `
-            <div class="form-group">
-                <label><strong>Company Name</strong></label>
-                <input type="text" name="companyName" required>
-            </div>
-            <div class="form-group">
-                <label><strong>Region</strong></label>
-                <select name="region" required>
-                    <option value="" disabled selected>-- Select a Region --</option>
-                    <option value="Tampa/West Florida">Tampa/West Florida</option>
-                    <option value="Orlando/Central Florida">Orlando/Central Florida</option>
-                    <option value="Miami/Ft. Lauderdale">Miami/Ft. Lauderdale</option>
-                </select>
-            </div>`;
+            let html = "";
 
             // SECTION 1: UNIT PRICING
-            html += `<hr><h3>Unit Pricing</h3>`;
-            
-            // Add dynamic note for Unit Pricing
-            if (data.unitPricing.note) html += `<p style="margin-top: -10px; margin-bottom: 20px; font-style: italic; color: #4b5563;">${data.unitPricing.note}</p>`;
-
+            html += `<h3>Current Unit Pricing</h3>`;
             if (data.unitPricing.items.length === 0) {
-                html += `<p>No unit pricing items found.</p>`;
+                html += `<p>No unit pricing items found for this package.</p>`;
             } else {
                 data.unitPricing.items.forEach((row, i) => {
                     html += `
@@ -149,24 +167,18 @@
                             <div class="input-group">
                                 <span class="input-group-addon prefix">$</span>
                                 <input type="number" step="0.01" name="unitPriceHigh_${i}" placeholder="High">
-                                <span class="input-group-addon suffix">/ ${row['UNIT OF MEASURE']}</span>
+                                <span class="input-group-addon suffix">/ ${row['UNIT OF MEASURE'] || 'UNIT'}</span>
                             </div>
                             <input type="hidden" name="unitItem_${i}" value="${row['ITEM']}">
+                            <input type="hidden" name="unitOriginalUOM_${i}" value="${row['UNIT OF MEASURE']}">
+                            <input type="hidden" name="unitPackage_${i}" value="${row['BID PACKAGE']}">
                         </div>
                     </div>`;
                 });
             }
-            
-            // Custom Add Items Container
-            html += `<div id="custom-unit-items"></div>`;
-            html += `<button type="button" class="btn-add" onclick="addCustomUnitItem()">+ Add Custom Item</button>`;
 
             // SECTION 2: LEAD TIMES
-            html += `<hr><h3>Lead Times</h3>`;
-            
-            // Add dynamic note for Lead Times
-            if (data.leadTimes.note) html += `<p style="margin-top: -10px; margin-bottom: 20px; font-style: italic; color: #4b5563;">${data.leadTimes.note}</p>`;
-
+            html += `<h3>Material Lead Times</h3>`;
             if (data.leadTimes.items.length === 0) {
                 html += `<p>No lead time items found.</p>`;
             } else {
@@ -178,21 +190,19 @@
                         </div>
                         <div class="input-area">
                             <div class="input-group">
-                                <input type="number" name="leadTime_${i}">
+                                <input type="number" name="leadTime_${i}" placeholder="Enter weeks">
                                 <span class="input-group-addon suffix">weeks</span>
                             </div>
                             <input type="hidden" name="leadItem_${i}" value="${row['ITEM']}">
+                            <input type="hidden" name="leadPackage_${i}" value="${row['BID PACKAGE']}">
                         </div>
                     </div>`;
                 });
             }
 
             // SECTION 3: PRICE ESCALATION
-            html += `<hr><h3>Price Escalation</h3>`;
-            
-            // Add dynamic note for Price Escalation
-            if (data.priceEscalation.note) html += `<p style="margin-top: -10px; margin-bottom: 20px; font-style: italic; color: #4b5563;">${data.priceEscalation.note}</p>`;
-
+            html += `<h3>Projected Price Variance</h3>`;
+            html += `<p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">Projected percentage variance for next quarter.</p>`;
             if (data.priceEscalation.items.length === 0) {
                 html += `<p>No escalation items found.</p>`;
             } else {
@@ -204,40 +214,35 @@
                         </div>
                         <div class="input-area">
                             <div class="input-group">
-                                <input type="number" step="0.01" name="escalation_${i}">
+                                <input type="number" step="0.01" name="escalation_${i}" placeholder="Enter %">
                                 <span class="input-group-addon suffix">%</span>
                             </div>
                             <input type="hidden" name="escalationItem_${i}" value="${row['ITEM']}">
+                            <input type="hidden" name="escalationPackage_${i}" value="${row['BID PACKAGE']}">
                         </div>
                     </div>`;
                 });
             }
 
-            html += `<button type="submit" id="submit-btn">Submit Pricing</button>`;
-            html += `</form>`;
-
-            document.getElementById('form-container').innerHTML = html;
-
-            // Add Event Listener for Submission
-            document.getElementById('subcontractor-form').addEventListener('submit', handleFormSubmit);
+            container.innerHTML = html;
+            document.getElementById('submit-container').innerHTML = `<button type="submit" id="submit-btn">Submit Pricing</button>`;
         }
 
-        // Logic to generate custom input rows
         function addCustomUnitItem() {
             const container = document.getElementById('custom-unit-items');
             const html = `
-            <div class="form-group flex-row custom-item-row" id="custom-item-${customItemCount}" style="border-left: 3px solid #0033a0; position: relative;">
-                <button type="button" class="btn-delete" onclick="this.closest('.custom-item-row').remove()" style="position: absolute; top: -5px; right: 5px;">✖ Delete</button>
-                <div class="details" style="display: flex; gap: 10px; margin-top: 15px;">
-                    <input type="text" name="customItemName_${customItemCount}" placeholder="Custom Item Description" style="flex: 2; margin-top: 0;">
-                    <input type="text" name="customItemUOM_${customItemCount}" placeholder="UOM (e.g. LS, SF)" style="flex: 1; margin-top: 0;">
+            <div class="form-group flex-row custom-item-row" id="custom-item-${customItemCount}" style="border-left: 3px solid #0033a0;">
+                <button type="button" class="btn-delete" onclick="this.closest('.custom-item-row').remove()">✖</button>
+                <div class="details" style="display: flex; gap: 10px; margin-top: 5px;">
+                    <input type="text" name="customItemName_${customItemCount}" placeholder="Custom Item Description" style="flex: 2;">
+                    <input type="text" name="customItemUOM_${customItemCount}" placeholder="UOM (e.g. LS, SF)" style="flex: 1;">
                 </div>
                 <div class="input-area double" style="display: flex; gap: 10px;">
-                    <div class="input-group" style="margin-top: 0;">
+                    <div class="input-group">
                         <span class="input-group-addon prefix">$</span>
                         <input type="number" step="0.01" name="customUnitPriceLow_${customItemCount}" placeholder="Low">
                     </div>
-                    <div class="input-group" style="margin-top: 0;">
+                    <div class="input-group">
                         <span class="input-group-addon prefix">$</span>
                         <input type="number" step="0.01" name="customUnitPriceHigh_${customItemCount}" placeholder="High">
                     </div>
@@ -248,103 +253,94 @@
         }
 
         function getCurrentQuarter() {
-            const date = new Date();
-            const quarter = Math.floor((date.getMonth() + 3) / 3);
-            return `Q${quarter} ${date.getFullYear()}`;
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const q = Math.floor(month / 3) + 1;
+            return `Q${q} ${year}`;
         }
 
-        async function handleFormSubmit(e) {
+        document.getElementById('pricing-form').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submit-btn');
-            btn.innerText = "Submitting...";
+            const originalText = btn.textContent;
             btn.disabled = true;
+            btn.textContent = "Submitting...";
 
-            // Gather all data from the form
             const formData = new FormData(e.target);
-            
-            // Build a structured payload mapping answers directly back to their original row data
-            const submissionData = {
+            const data = {
                 companyName: formData.get('companyName'),
                 region: formData.get('region'),
-                quarter: getCurrentQuarter(),
-                bidPackage: currentPackage,
+                quarter: formData.get('quarter'),
+                bidPackage: formData.get('bidPackage'),
                 unitPricing: [],
                 leadTimes: [],
                 priceEscalation: []
             };
 
-            // Map Unit Pricing answers
-            if (fetchedData && fetchedData.unitPricing && fetchedData.unitPricing.items) {
-                fetchedData.unitPricing.items.forEach((row, i) => {
-                    const lowVal = formData.get(`unitPriceLow_${i}`);
-                    const highVal = formData.get(`unitPriceHigh_${i}`);
-                    if (lowVal || highVal) { 
-                        submissionData.unitPricing.push({ 
-                            ...row, 
-                            'SUBMITTED LOW PRICE': lowVal,
-                            'SUBMITTED HIGH PRICE': highVal
-                        });
-                    }
-                });
-            }
+            // Parse Form Data into JSON structure
+            for (let [key, value] of formData.entries()) {
+                if (!value) continue;
 
-            // Map Custom Unit Pricing answers added by the subcontractor
-            for (let i = 0; i < customItemCount; i++) {
-                const itemName = formData.get(`customItemName_${i}`);
-                const uom = formData.get(`customItemUOM_${i}`);
-                const lowPrice = formData.get(`customUnitPriceLow_${i}`);
-                const highPrice = formData.get(`customUnitPriceHigh_${i}`);
-                
-                if (itemName && uom && (lowPrice || highPrice)) {
-                    submissionData.unitPricing.push({
-                        'ITEM': itemName,
-                        'UNIT OF MEASURE': uom,
-                        'SUBMITTED LOW PRICE': lowPrice,
-                        'SUBMITTED HIGH PRICE': highPrice,
-                        'BID PACKAGE': currentPackage
+                if (key.startsWith('unitPriceLow_')) {
+                    const idx = key.split('_')[1];
+                    data.unitPricing.push({
+                        'BID PACKAGE': formData.get(`unitPackage_${idx}`),
+                        'ITEM': formData.get(`unitItem_${idx}`),
+                        'UNIT OF MEASURE': formData.get(`unitOriginalUOM_${idx}`),
+                        'LOW RANGE': value,
+                        'HIGH RANGE': formData.get(`unitPriceHigh_${idx}`) || value,
+                        'SUBMITTED PRICE': value 
+                    });
+                } else if (key.startsWith('leadTime_')) {
+                    const idx = key.split('_')[1];
+                    data.leadTimes.push({
+                        'BID PACKAGE': formData.get(`leadPackage_${idx}`),
+                        'ITEM': formData.get(`leadItem_${idx}`),
+                        'SUBMITTED LEAD TIME': value
+                    });
+                } else if (key.startsWith('escalation_')) {
+                    const idx = key.split('_')[1];
+                    data.priceEscalation.push({
+                        'BID PACKAGE': formData.get(`escalationPackage_${idx}`),
+                        'ITEM': formData.get(`escalationItem_${idx}`),
+                        'SUBMITTED VARIANCE': value
+                    });
+                } else if (key.startsWith('customItemName_')) {
+                    const idx = key.split('_')[1];
+                    data.unitPricing.push({
+                        'BID PACKAGE': data.bidPackage,
+                        'ITEM': value + " (Custom)",
+                        'UNIT OF MEASURE': formData.get(`customItemUOM_${idx}`) || "LS",
+                        'LOW RANGE': formData.get(`customUnitPriceLow_${idx}`),
+                        'HIGH RANGE': formData.get(`customUnitPriceHigh_${idx}`),
+                        'SUBMITTED PRICE': formData.get(`customUnitPriceLow_${idx}`)
                     });
                 }
             }
 
-            // Map Lead Times answers
-            if (fetchedData && fetchedData.leadTimes && fetchedData.leadTimes.items) {
-                fetchedData.leadTimes.items.forEach((row, i) => {
-                    const val = formData.get(`leadTime_${i}`);
-                    if (val) submissionData.leadTimes.push({ ...row, 'SUBMITTED LEAD TIME': val });
-                });
-            }
-
-            // Map Price Escalation answers
-            if (fetchedData && fetchedData.priceEscalation && fetchedData.priceEscalation.items) {
-                fetchedData.priceEscalation.items.forEach((row, i) => {
-                    const val = formData.get(`escalation_${i}`);
-                    if (val) submissionData.priceEscalation.push({ ...row, 'SUBMITTED VARIANCE': val });
-                });
-            }
-
             try {
-                const response = await fetch(GAS_FORM_WEB_APP_URL, {
+                const response = await fetch(GAS_DB_WEB_APP_URL, {
                     method: 'POST',
-                    body: JSON.stringify(submissionData)
+                    mode: 'no-cors', 
+                    body: JSON.stringify(data)
                 });
-                const result = await response.json();
-
-                if (result.status === "success") {
-                    document.getElementById('form-container').innerHTML = `
-                        <div style="text-align: center; color: #4b5563; margin-top: 20px;">
-                            <h3 style="color: #0033a0;">Success!</h3>
-                            <p>Your pricing for the ${currentPackage} package has been submitted.</p>
-                            <a href="index.html" style="color: #0033a0; font-weight: bold; text-decoration: none;">Return to Home</a>
-                        </div>`;
-                } else {
-                    throw new Error(result.message || "Unknown error");
-                }
+                
+                // Since no-cors hides the response, we assume success if no error is thrown
+                document.body.innerHTML = `
+                <div class="container" style="text-align: center; padding: 60px 20px;">
+                    <img src="becklogo.png" alt="Beck Logo" style="height: 60px; margin-bottom: 20px;">
+                    <h2 style="color: #0033a0;">Submission Successful</h2>
+                    <p>Thank you for submitting your market pricing for <strong>${data.bidPackage}</strong>.</p>
+                    <p style="color: #6b7280;">You can now close this window.</p>
+                </div>`;
             } catch (error) {
-                alert("Error submitting form: " + error.message);
-                btn.innerText = "Submit Pricing";
+                console.error('Submission error:', error);
+                alert("Submission failed. Please check your connection and try again.");
                 btn.disabled = false;
+                btn.textContent = originalText;
             }
-        }
+        };
     </script>
 </body>
 </html>
