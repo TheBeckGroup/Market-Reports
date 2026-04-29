@@ -61,7 +61,8 @@
         
         /* Graphical View Container */
         .chart-placeholder { text-align: center; padding: 60px 20px; background: #f9fafb; border: 1px dashed #d1d5db; border-radius: 8px; margin-bottom: 40px; color: #6b7280; }
-        .chart-container { position: relative; height: 350px; width: 100%; margin-bottom: 40px; display: none; }
+        .chart-container { position: relative; height: 400px; width: 100%; margin-bottom: 40px; display: none; flex-direction: column; }
+        .chart-inner-wrapper { position: relative; flex: 1; width: 100%; min-height: 0; }
         
         /* Table Styling */
         .table-container { overflow-x: auto; }
@@ -124,7 +125,10 @@
                 </div>
 
                 <div class="chart-container" id="chart-wrapper">
-                    <canvas id="dataChart"></canvas>
+                    <h3 id="chart-inner-title" style="text-align: center; color: #4b5563; margin-top: 0; margin-bottom: 15px; font-size: 16px; text-transform: uppercase;"></h3>
+                    <div class="chart-inner-wrapper">
+                        <canvas id="dataChart"></canvas>
+                    </div>
                 </div>
 
                 <div id="data-container" class="table-container">
@@ -283,7 +287,33 @@
             }
             
             placeholder.style.display = 'none';
-            chartWrapper.style.display = 'block';
+            chartWrapper.style.display = 'flex'; // Use flex to stack title and chart cleanly
+
+            // Extract dynamic UOM and Quarter for the chart title
+            let uom = 'UNIT';
+            let quarterStr = '';
+            
+            if (dataArray.length > 0) {
+                const firstRowKeys = Object.keys(dataArray[0]);
+                const uomKey = firstRowKeys.find(k => k.toUpperCase().includes('UNIT OF MEASURE') || k.toUpperCase() === 'UOM');
+                if (uomKey && dataArray[0][uomKey]) uom = dataArray[0][uomKey];
+                
+                const qKey = firstRowKeys.find(k => k.toUpperCase().includes('QUARTER'));
+                if (qKey) {
+                    const uniqueQuarters = new Set();
+                    dataArray.forEach(r => { if (r[qKey]) uniqueQuarters.add(r[qKey]); });
+                    quarterStr = Array.from(uniqueQuarters).join(' & ');
+                }
+            }
+
+            const chartInnerTitle = document.getElementById('chart-inner-title');
+            if (currentTab === 'unitPricing') {
+                chartInnerTitle.textContent = `COST/${uom} - ${quarterStr || 'All Time'}`;
+            } else if (currentTab === 'leadTimes') {
+                chartInnerTitle.textContent = `LEAD TIME (WEEKS) - ${quarterStr || 'All Time'}`;
+            } else if (currentTab === 'priceEscalation') {
+                chartInnerTitle.textContent = `PRICE VARIANCE (%) - ${quarterStr || 'All Time'}`;
+            }
 
             // FUZZY DATA MATCHER with Percentage Handling
             const getCleanValue = (row, keywords, isPercent = false) => {
@@ -319,12 +349,11 @@
 
             // Plot individual submissions (since we are locked to 1 item)
             dataArray.forEach(row => {
-                const company = row['COMPANY'] || row['COMPANY NAME'] || 'Unknown Co.';
                 const region = row['REGION'] || 'No Region';
                 const quarter = row['QUARTER'] || '';
                 
-                // Label formats dynamically so Company is top line, Region/Time is bottom line
-                labels.push([company, quarter ? `${region} | ${quarter}` : region]);
+                // Label formats dynamically (Company removed from X-axis as requested)
+                labels.push(quarter ? `${region} | ${quarter}` : region);
                 
                 if (currentTab === 'unitPricing') {
                     let low = getCleanValue(row, ['LOW', 'RANGE']);
