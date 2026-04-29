@@ -52,6 +52,13 @@
         .toggle-btn:hover { color: #002270; }
         .header-bar h2 { margin: 0; color: #0033a0; font-size: 24px; }
         .header-bar img { height: 50px; width: auto; object-fit: contain; margin-left: 20px; }
+
+        /* Controls & Filters */
+        .controls-bar { display: flex; gap: 15px; margin-bottom: 20px; background: #f9fafb; padding: 15px; border-radius: 6px; border: 1px solid #e5e7eb; flex-wrap: wrap; }
+        .control-group { display: flex; flex-direction: column; flex: 1; max-width: 250px; }
+        .control-group label { font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; color: #6b7280; }
+        select { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; color: #4b5563; background-color: #fff; outline: none; }
+        select:focus { border-color: #0033a0; box-shadow: 0 0 0 1px #0033a0; }
         
         /* Tabs */
         .tabs { display: flex; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; gap: 10px; flex-wrap: wrap; }
@@ -63,8 +70,6 @@
         .chart-placeholder { text-align: center; padding: 60px 20px; background: #f9fafb; border: 1px dashed #d1d5db; border-radius: 8px; margin-bottom: 40px; color: #6b7280; }
         .chart-container { position: relative; height: 400px; width: 100%; margin-bottom: 40px; display: none; flex-direction: column; }
         .chart-inner-wrapper { position: relative; flex: 1; width: 100%; min-height: 0; }
-        
-        .loading { text-align: center; font-size: 18px; color: #6b7280; padding: 40px; }
 
         .mobile-toggle { display: none; }
 
@@ -102,6 +107,15 @@
                     <img src="becklogo.png" alt="Company Logo">
                 </div>
 
+                <div class="controls-bar">
+                    <div class="control-group">
+                        <label>Filter by Quarter</label>
+                        <select id="filter-quarter" onchange="applyFilters()">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+
                 <div class="tabs">
                     <button class="tab-btn active" onclick="switchTab('unitPricing')">Unit Pricing</button>
                     <button class="tab-btn" onclick="switchTab('leadTimes')">Lead Times</button>
@@ -112,10 +126,10 @@
                 <div id="chart-placeholder" class="chart-placeholder" style="display: none;">
                     <span style="font-size: 24px; display: block; margin-bottom: 10px;">📊</span>
                     <strong>Select an Item</strong><br>
-                    Please select a specific item from the sidebar on the left to view market trends and variations across regions and time.
+                    Please select a specific item from the sidebar on the left to view market trends and variations.
                 </div>
 
-                <!-- Primary Bar/Scatter Chart -->
+                <!-- Primary Bar/Scatter Chart (Single Quarter Snapshot) -->
                 <div class="chart-container" id="chart-wrapper">
                     <h3 id="chart-inner-title" style="text-align: left; margin-top: 0; margin-bottom: 15px; font-size: 16px;"></h3>
                     <div class="chart-inner-wrapper">
@@ -123,7 +137,7 @@
                     </div>
                 </div>
 
-                <!-- Time Series Line Chart -->
+                <!-- Time Series Line Chart (All Quarters) -->
                 <div class="chart-container" id="trend-chart-wrapper">
                     <h3 style="text-align: left; margin-top: 0; margin-bottom: 15px; font-size: 16px; color: #0033a0;">Trend Over Time</h3>
                     <div class="chart-inner-wrapper">
@@ -142,13 +156,48 @@
         let rawData = { unitPricing: [], leadTimes: [], priceEscalation: [] };
         let currentTab = 'unitPricing';
         let myChart = null; 
-        let myTrendChart = null; // Store trend chart instance
+        let myTrendChart = null; 
         
         // State tracking for the sidebar filters
         let activePackageFilter = "";
         let activeItemFilter = "";
 
-        // Intelligent Number Extractor
+        // Cache and logic to draw a "split bubble" if data points overlap exactly
+        const pieCanvases = {};
+        function getPieCanvas(colors) {
+            const key = colors.join('-');
+            if (pieCanvases[key]) return pieCanvases[key];
+            
+            const size = 16;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const r = size / 2;
+            
+            const slice = (2 * Math.PI) / colors.length;
+            let startAngle = -Math.PI / 2;
+            
+            colors.forEach(color => {
+                ctx.beginPath();
+                ctx.moveTo(r, r);
+                ctx.arc(r, r, r, startAngle, startAngle + slice);
+                ctx.closePath();
+                ctx.fillStyle = color;
+                ctx.fill();
+                startAngle += slice;
+            });
+            
+            ctx.beginPath();
+            ctx.arc(r, r, r - 0.5, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            
+            pieCanvases[key] = canvas;
+            return canvas;
+        }
+
         const getCleanValue = (row, keywords, isPercent = false) => {
             const keys = Object.keys(row);
             const targetKey = keys.find(k => {
@@ -170,7 +219,6 @@
             return parsed;
         };
 
-        // Data Aggregation Engine: Groups submissions by Region & Quarter and averages the values
         function aggregateData(dataArray, tab) {
             const grouped = {};
             
@@ -235,7 +283,6 @@
                 result.push(newRow);
             }
             
-            // Priority Sort: Tampa always first, then alphabetize Regions, then Quarter
             result.sort((a, b) => {
                 const rA = (a['REGION'] || '').toUpperCase();
                 const rB = (b['REGION'] || '').toUpperCase();
@@ -258,7 +305,6 @@
 
         document.addEventListener("DOMContentLoaded", fetchSubmissions);
 
-        // Sidebar Toggle Logic
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             if (window.innerWidth <= 850) {
@@ -277,12 +323,46 @@
                 
                 rawData = data;
                 renderSidebar();
+                populateFilters(); // Populate the Quarter dropdown globally
                 applyFilters(); 
             } catch (error) {
                 console.error('Fetch error:', error);
                 document.getElementById('sidebar-menu').innerHTML = '';
                 document.getElementById('chart-placeholder').style.display = 'block';
                 document.getElementById('chart-placeholder').innerHTML = `<p style="color:red;">Failed to connect to the database. Error: ${error.message}</p>`;
+            }
+        }
+
+        function populateFilters() {
+            const quarters = new Set();
+
+            // Extract all unique quarters from the entire dataset
+            ['unitPricing', 'leadTimes', 'priceEscalation'].forEach(tab => {
+                rawData[tab].forEach(row => {
+                    if (row['QUARTER']) quarters.add(row['QUARTER']);
+                });
+            });
+
+            const quarterSelect = document.getElementById('filter-quarter');
+            if (quarterSelect) {
+                quarterSelect.innerHTML = ''; // Clear default
+                
+                // Sort quarters chronologically
+                let sortedQuarters = Array.from(quarters).sort((a, b) => {
+                    let yrA = a.match(/\d{4}/); yrA = yrA ? yrA[0] : a;
+                    let yrB = b.match(/\d{4}/); yrB = yrB ? yrB[0] : b;
+                    if (yrA !== yrB) return yrA.localeCompare(yrB);
+                    return a.localeCompare(b);
+                });
+                
+                sortedQuarters.forEach(val => {
+                    quarterSelect.insertAdjacentHTML('beforeend', `<option value="${val}">${val}</option>`);
+                });
+                
+                // Auto-select the most recent quarter
+                if (sortedQuarters.length > 0) {
+                    quarterSelect.value = sortedQuarters[sortedQuarters.length - 1];
+                }
             }
         }
 
@@ -343,22 +423,27 @@
         }
 
         function applyFilters() {
+            const quarterFilter = document.getElementById('filter-quarter') ? document.getElementById('filter-quarter').value : '';
             const currentData = rawData[currentTab];
             
-            const filteredData = currentData.filter(row => {
+            // Filter strictly by the selected package and item from the sidebar
+            const baseFilteredData = currentData.filter(row => {
                 const matchPackage = !activePackageFilter || row['BID PACKAGE'] === activePackageFilter;
                 const matchItem = !activeItemFilter || row['ITEM'] === activeItemFilter;
                 return matchPackage && matchItem;
             });
 
-            // Group the data cleanly by Region and Quarter
-            const aggregatedData = aggregateData(filteredData, currentTab);
+            // Aggregate data globally (for the trend chart)
+            const aggregatedData = aggregateData(baseFilteredData, currentTab);
 
-            renderChart(aggregatedData);
+            // Create a specific snapshot for the top chart based on the dropdown
+            const snapshotData = aggregatedData.filter(row => row['QUARTER'] === quarterFilter);
+
+            renderChart(snapshotData, quarterFilter);
             renderTrendChart(aggregatedData);
         }
 
-        function renderChart(dataArray) {
+        function renderChart(dataArray, selectedQuarter) {
             const chartWrapper = document.getElementById('chart-wrapper');
             const placeholder = document.getElementById('chart-placeholder');
             const ctx = document.getElementById('dataChart').getContext('2d');
@@ -373,44 +458,43 @@
             }
 
             // ENFORCE 1-ITEM RULE
-            if (!activeItemFilter || !dataArray || dataArray.length === 0) {
+            if (!activeItemFilter) {
                 chartWrapper.style.display = 'none';
                 placeholder.style.display = 'block';
+                placeholder.innerHTML = `<span style="font-size: 24px; display: block; margin-bottom: 10px;">📊</span><strong>Select an Item</strong><br>Please select a specific item from the sidebar on the left to view market trends and variations.`;
+                return;
+            }
+
+            // ENFORCE EMPTY STATE IF NO DATA IN SELECTED QUARTER
+            if (!dataArray || dataArray.length === 0) {
+                chartWrapper.style.display = 'none';
+                placeholder.style.display = 'block';
+                placeholder.innerHTML = `<span style="font-size: 24px; display: block; margin-bottom: 10px;">📉</span><strong>No Data Available</strong><br>There are no submissions for this item in ${selectedQuarter || 'the selected quarter'}.`;
                 return;
             }
             
             placeholder.style.display = 'none';
             chartWrapper.style.display = 'flex'; 
 
-            // Extract dynamic UOM and Quarter for the chart title
             let uom = 'UNIT';
-            let quarterStr = '';
-            
             if (dataArray.length > 0) {
                 const firstRowKeys = Object.keys(dataArray[0]);
                 const uomKey = firstRowKeys.find(k => k.toUpperCase().includes('UNIT OF MEASURE') || k.toUpperCase() === 'UOM');
                 if (uomKey && dataArray[0][uomKey]) uom = dataArray[0][uomKey];
-                
-                const qKey = firstRowKeys.find(k => k.toUpperCase().includes('QUARTER'));
-                if (qKey) {
-                    const uniqueQuarters = new Set();
-                    dataArray.forEach(r => { if (r[qKey]) uniqueQuarters.add(r[qKey]); });
-                    quarterStr = Array.from(uniqueQuarters).join(' & ');
-                }
             }
 
             const chartInnerTitle = document.getElementById('chart-inner-title');
             let titlePrefix = '';
             
             if (currentTab === 'unitPricing') {
-                titlePrefix = `Cost/${uom}`; // Proper capitalization applied here
+                titlePrefix = `Cost/${uom}`; 
             } else if (currentTab === 'leadTimes') {
                 titlePrefix = `Lead Time (Weeks)`;
             } else if (currentTab === 'priceEscalation') {
                 titlePrefix = `Price Variance (%)`;
             }
 
-            chartInnerTitle.innerHTML = `<span style="color: #0033a0;">${titlePrefix}</span> <span style="color: #4b5563; text-transform: uppercase;">- ${quarterStr || 'All Time'}</span>`;
+            chartInnerTitle.innerHTML = `<span style="color: #0033a0;">${titlePrefix}</span> <span style="color: #4b5563; text-transform: uppercase;">- ${selectedQuarter}</span>`;
 
             const labels = [];
             const lowData = [];
@@ -418,8 +502,7 @@
             const leadData = [];
             const varData = [];
 
-            // Generate region colors mapping for consistency with trend chart
-            const colors = ['#0033a0', '#4b5563', '#3b82f6']; // Company Blue, Dark Gray, Light Blue
+            const colors = ['#0033a0', '#4b5563', '#3b82f6']; 
             let uniqueRegions = [...new Set(dataArray.map(r => r['REGION']).filter(r => r))];
             uniqueRegions.sort((a, b) => {
                 const isTampaA = a.toUpperCase().includes('TAMPA') || a.toUpperCase().includes('WEST FLORIDA');
@@ -431,14 +514,12 @@
 
             const bgColors = [];
 
-            // Plot Aggregated Data Points
             dataArray.forEach(row => {
                 const region = row['REGION'] || 'No Region';
-                const quarter = row['QUARTER'] || '';
                 
-                labels.push(quarter ? [region, quarter] : [region]);
+                // Only plot Region on the X-axis since the chart is strictly locked to 1 quarter
+                labels.push(region);
                 
-                // Map the region to the matching color from the trend chart
                 const rIdx = uniqueRegions.indexOf(region);
                 bgColors.push(colors[rIdx !== -1 ? (rIdx % colors.length) : 0]);
                 
@@ -509,11 +590,9 @@
                 yAxisCallback = function(value) { return value + '%'; };
                 tooltipCallback = function(context) { return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%'; };
             } else if (currentTab === 'leadTimes') {
-                // Remove decimal from weeks representation
                 tooltipCallback = function(context) { return context.dataset.label + ': ' + Math.round(context.parsed.y) + ' Weeks'; };
             }
 
-            // Custom plugin to draw the light gray connector stem between low and high ranges
             const stemPlugin = {
                 id: 'stemPlugin',
                 beforeDatasetsDraw(chart) {
@@ -557,7 +636,7 @@
                             formatter: function(value, context) {
                                 if (currentTab === 'unitPricing') return '$' + value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                                 if (currentTab === 'priceEscalation') return value.toFixed(2) + '%';
-                                if (currentTab === 'leadTimes') return Math.round(value) + ' Wks'; // Rounded integer
+                                if (currentTab === 'leadTimes') return Math.round(value) + ' Wks'; 
                             }
                         },
                         legend: { display: false }, 
@@ -584,6 +663,7 @@
 
         function renderTrendChart(dataArray) {
             const trendWrapper = document.getElementById('trend-chart-wrapper');
+            const innerWrapper = trendWrapper.querySelector('.chart-inner-wrapper');
             const ctx = document.getElementById('trendChart').getContext('2d');
             
             if (myTrendChart) myTrendChart.destroy();
@@ -593,7 +673,6 @@
                 return;
             }
 
-            // Extract unique quarters chronologically
             let quarters = [...new Set(dataArray.map(r => r['QUARTER']).filter(q => q))];
             quarters.sort((a, b) => {
                 let yrA = a.match(/\d{4}/); yrA = yrA ? yrA[0] : a;
@@ -609,7 +688,16 @@
             
             trendWrapper.style.display = 'flex';
 
-            // Extract Regions 
+            // VISUAL DIGESTIBILITY: Constrain chart width if there are only a few quarters
+            if (quarters.length <= 4) {
+                // E.g., 2 quarters -> ~450px wide. Prevents extreme stretching.
+                innerWrapper.style.maxWidth = Math.max(400, (quarters.length * 150) + 150) + 'px';
+                innerWrapper.style.margin = '0 auto';
+            } else {
+                innerWrapper.style.maxWidth = '100%';
+                innerWrapper.style.margin = '0';
+            }
+
             let regions = [...new Set(dataArray.map(r => r['REGION']).filter(r => r))];
             regions.sort((a, b) => {
                 const isTampaA = a.toUpperCase().includes('TAMPA') || a.toUpperCase().includes('WEST FLORIDA');
@@ -619,14 +707,14 @@
                 return a.localeCompare(b);
             });
 
-            const colors = ['#0033a0', '#4b5563', '#3b82f6']; // Company Blue, Dark Gray, Light Blue
+            const colors = ['#0033a0', '#4b5563', '#3b82f6'];
 
             const datasets = regions.map((region, idx) => {
                 const dataPoints = quarters.map(q => {
                     const row = dataArray.find(r => r['REGION'] === region && r['QUARTER'] === q);
                     if (!row) return null;
                     
-                    if (currentTab === 'unitPricing') return (row['LOW RANGE'] + row['HIGH RANGE']) / 2; // Average of ranges
+                    if (currentTab === 'unitPricing') return (row['LOW RANGE'] + row['HIGH RANGE']) / 2; 
                     if (currentTab === 'leadTimes') return row['LEAD TIME'];
                     if (currentTab === 'priceEscalation') return row['PRICE VARIANCE'];
                 });
@@ -636,13 +724,57 @@
                     data: dataPoints,
                     borderColor: colors[idx % colors.length],
                     backgroundColor: colors[idx % colors.length],
-                    tension: 0.3, // Adds smooth curving to lines
+                    tension: 0.3, 
                     fill: false,
-                    spanGaps: true, // Connect lines across missing quarter data
-                    pointRadius: 5,
-                    pointHoverRadius: 7,
-                    datalabels: { display: false } // Disabled so lines aren't cluttered
+                    spanGaps: true, 
+                    datalabels: { display: false } 
                 };
+            });
+
+            const pointStyles = datasets.map(() => []);
+            const pointRadii = datasets.map(() => []);
+            const pointHoverRadii = datasets.map(() => []);
+
+            for (let q = 0; q < quarters.length; q++) {
+                const valMap = {};
+                
+                datasets.forEach((ds, dIndex) => {
+                    const val = ds.data[q];
+                    if (val !== null && val !== undefined) {
+                        const key = val.toFixed(4); 
+                        if (!valMap[key]) valMap[key] = [];
+                        valMap[key].push(dIndex);
+                    }
+                });
+
+                datasets.forEach((ds, dIndex) => {
+                    const val = ds.data[q];
+                    if (val !== null && val !== undefined) {
+                        const key = val.toFixed(4);
+                        const overlappingIndices = valMap[key];
+                        
+                        if (overlappingIndices.length > 1) {
+                            const overlappingColors = overlappingIndices.map(idx => datasets[idx].backgroundColor);
+                            pointStyles[dIndex].push(getPieCanvas(overlappingColors));
+                            pointRadii[dIndex].push(8); 
+                            pointHoverRadii[dIndex].push(10);
+                        } else {
+                            pointStyles[dIndex].push('circle');
+                            pointRadii[dIndex].push(5);
+                            pointHoverRadii[dIndex].push(7);
+                        }
+                    } else {
+                        pointStyles[dIndex].push('circle');
+                        pointRadii[dIndex].push(5);
+                        pointHoverRadii[dIndex].push(7);
+                    }
+                });
+            }
+
+            datasets.forEach((ds, dIndex) => {
+                ds.pointStyle = pointStyles[dIndex];
+                ds.pointRadius = pointRadii[dIndex];
+                ds.pointHoverRadius = pointHoverRadii[dIndex];
             });
 
             let yAxisCallback = function(value) { return value; };
@@ -667,6 +799,10 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
                     plugins: {
                         legend: { 
                             display: true, 
@@ -689,4 +825,3 @@
     </script>
 </body>
 </html>
-
