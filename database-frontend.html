@@ -66,6 +66,7 @@
         .tab-btn.active { color: #0033a0; border-bottom: 3px solid #0033a0; margin-bottom: -2px; }
         
         /* Graphical View Container */
+        .chart-placeholder { text-align: center; padding: 60px 20px; background: #f9fafb; border: 1px dashed #d1d5db; border-radius: 8px; margin-bottom: 40px; color: #6b7280; }
         .chart-container { position: relative; height: 350px; width: 100%; margin-bottom: 40px; display: none; }
         
         /* Table Styling */
@@ -131,6 +132,12 @@
                 </div>
 
                 <!-- Graphical Chart Area -->
+                <div id="chart-placeholder" class="chart-placeholder" style="display: none;">
+                    <span style="font-size: 24px; display: block; margin-bottom: 10px;">📊</span>
+                    <strong>Select an Item</strong><br>
+                    Please select a specific item from the sidebar on the left to view market trends and variations across regions and time.
+                </div>
+
                 <div class="chart-container" id="chart-wrapper">
                     <canvas id="dataChart"></canvas>
                 </div>
@@ -285,19 +292,32 @@
 
         function renderChart(dataArray) {
             const chartWrapper = document.getElementById('chart-wrapper');
+            const placeholder = document.getElementById('chart-placeholder');
             const ctx = document.getElementById('dataChart').getContext('2d');
             
             if (myChart) myChart.destroy();
 
+            // ENFORCE 1-ITEM RULE: If no item is specifically selected, hide chart and prompt the user.
+            if (!activeItemFilter) {
+                chartWrapper.style.display = 'none';
+                if (dataArray && dataArray.length > 0) {
+                    placeholder.style.display = 'block';
+                } else {
+                    placeholder.style.display = 'none';
+                }
+                return;
+            }
+
             if (!dataArray || dataArray.length === 0) {
                 chartWrapper.style.display = 'none';
+                placeholder.style.display = 'none';
                 return;
             }
             
+            placeholder.style.display = 'none';
             chartWrapper.style.display = 'block';
 
             // FUZZY DATA MATCHER
-            // Searches the row for a column header that matches the keywords exactly or partially
             const getCleanValue = (row, keywords) => {
                 const keys = Object.keys(row);
                 const targetKey = keys.find(k => {
@@ -315,14 +335,21 @@
                 return isNaN(parsed) ? 0 : parsed;
             };
 
-            const grouped = {};
+            const labels = [];
+            const lowData = [];
+            const highData = [];
+            const leadData = [];
+            const varData = [];
+
+            // Plot individual submissions (since we are locked to 1 item)
             dataArray.forEach(row => {
-                const item = row['ITEM'] || 'Unknown Item';
-                if (!grouped[item]) grouped[item] = { count: 0, sum1: 0, sum2: 0 };
+                const company = row['COMPANY'] || row['COMPANY NAME'] || 'Unknown Co.';
+                const region = row['REGION'] || 'No Region';
+                const quarter = row['QUARTER'] || '';
                 
-                grouped[item].count++;
+                // Label formats dynamically so Company is top line, Region/Time is bottom line
+                labels.push([company, quarter ? `${region} | ${quarter}` : region]);
                 
-                // Prioritize 'LOW RANGE' and 'HIGH RANGE' matching
                 if (currentTab === 'unitPricing') {
                     let low = getCleanValue(row, ['LOW', 'RANGE']);
                     if (low === 0) low = getCleanValue(row, ['SUBMITTED', 'LOW']); 
@@ -332,45 +359,57 @@
                     if (high === 0) high = getCleanValue(row, ['SUBMITTED', 'HIGH']); 
                     if (high === 0) high = getCleanValue(row, ['HIGH', 'PRICE']); 
                     
-                    grouped[item].sum1 += low;
-                    grouped[item].sum2 += high;
+                    lowData.push(low);
+                    highData.push(high);
                 } else if (currentTab === 'leadTimes') {
                     let lead = getCleanValue(row, ['LEAD', 'TIME']);
                     if (lead === 0) lead = getCleanValue(row, ['SUBMITTED', 'LEAD']); 
                     
-                    grouped[item].sum1 += lead;
+                    leadData.push(lead);
                 } else if (currentTab === 'priceEscalation') {
                     let variance = getCleanValue(row, ['VARIANCE']);
                     if (variance === 0) variance = getCleanValue(row, ['ESCALATION']); 
                     
-                    grouped[item].sum1 += variance;
+                    varData.push(variance);
                 }
             });
 
-            const labels = Object.keys(grouped);
             const datasets = [];
 
             if (currentTab === 'unitPricing') {
+                // Stacked points (scatter/line approach without drawing the connection lines)
                 datasets.push({
-                    label: 'Average Low Range',
-                    data: labels.map(l => parseFloat((grouped[l].sum1 / grouped[l].count).toFixed(2))),
-                    backgroundColor: '#4b5563' 
+                    type: 'line',
+                    showLine: false,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    label: 'Low Range',
+                    data: lowData,
+                    backgroundColor: '#4b5563', 
+                    borderColor: '#4b5563'
                 });
                 datasets.push({
-                    label: 'Average High Range',
-                    data: labels.map(l => parseFloat((grouped[l].sum2 / grouped[l].count).toFixed(2))),
-                    backgroundColor: '#0033a0' 
+                    type: 'line',
+                    showLine: false,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    label: 'High Range',
+                    data: highData,
+                    backgroundColor: '#0033a0', 
+                    borderColor: '#0033a0'
                 });
             } else if (currentTab === 'leadTimes') {
                 datasets.push({
-                    label: 'Average Lead Time',
-                    data: labels.map(l => parseFloat((grouped[l].sum1 / grouped[l].count).toFixed(1))),
+                    type: 'bar',
+                    label: 'Lead Time',
+                    data: leadData,
                     backgroundColor: '#0033a0' 
                 });
             } else if (currentTab === 'priceEscalation') {
                 datasets.push({
-                    label: 'Average Price Variance',
-                    data: labels.map(l => parseFloat((grouped[l].sum1 / grouped[l].count).toFixed(2))),
+                    type: 'bar',
+                    label: 'Price Variance',
+                    data: varData,
                     backgroundColor: '#0033a0'
                 });
             }
@@ -390,7 +429,7 @@
             }
 
             myChart = new Chart(ctx, {
-                type: 'bar',
+                type: 'bar', // Base type, overridden by unitPricing datasets
                 data: { labels, datasets },
                 options: {
                     responsive: true,
