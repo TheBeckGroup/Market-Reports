@@ -297,8 +297,7 @@
             chartWrapper.style.display = 'block';
 
             // FUZZY DATA MATCHER
-            // Searches the row for a column header that matches the keywords, 
-            // bypassing any trailing spaces or typos in the Google Sheet.
+            // Searches the row for a column header that matches the keywords exactly or partially
             const getCleanValue = (row, keywords) => {
                 const keys = Object.keys(row);
                 const targetKey = keys.find(k => {
@@ -323,26 +322,26 @@
                 
                 grouped[item].count++;
                 
-                // Dynamically fetch values based on partial column matches
+                // Prioritize 'LOW RANGE' and 'HIGH RANGE' matching
                 if (currentTab === 'unitPricing') {
-                    let low = getCleanValue(row, ['SUBMITTED', 'LOW']);
-                    if (low === 0) low = getCleanValue(row, ['SUBMITTED', 'PRICE']); // Fallback
-                    if (low === 0) low = getCleanValue(row, ['LOW', 'PRICE']); // Fallback
+                    let low = getCleanValue(row, ['LOW', 'RANGE']);
+                    if (low === 0) low = getCleanValue(row, ['SUBMITTED', 'LOW']); 
+                    if (low === 0) low = getCleanValue(row, ['LOW', 'PRICE']); 
                     
-                    let high = getCleanValue(row, ['SUBMITTED', 'HIGH']);
-                    if (high === 0) high = getCleanValue(row, ['HIGH', 'PRICE']); // Fallback
+                    let high = getCleanValue(row, ['HIGH', 'RANGE']);
+                    if (high === 0) high = getCleanValue(row, ['SUBMITTED', 'HIGH']); 
+                    if (high === 0) high = getCleanValue(row, ['HIGH', 'PRICE']); 
                     
                     grouped[item].sum1 += low;
                     grouped[item].sum2 += high;
                 } else if (currentTab === 'leadTimes') {
-                    let lead = getCleanValue(row, ['SUBMITTED', 'LEAD']);
-                    if (lead === 0) lead = getCleanValue(row, ['LEAD', 'TIME']); // Fallback
+                    let lead = getCleanValue(row, ['LEAD', 'TIME']);
+                    if (lead === 0) lead = getCleanValue(row, ['SUBMITTED', 'LEAD']); 
                     
                     grouped[item].sum1 += lead;
                 } else if (currentTab === 'priceEscalation') {
-                    let variance = getCleanValue(row, ['SUBMITTED', 'VARIANCE']);
-                    if (variance === 0) variance = getCleanValue(row, ['VARIANCE']); // Fallback
-                    if (variance === 0) variance = getCleanValue(row, ['ESCALATION']); // Fallback
+                    let variance = getCleanValue(row, ['VARIANCE']);
+                    if (variance === 0) variance = getCleanValue(row, ['ESCALATION']); 
                     
                     grouped[item].sum1 += variance;
                 }
@@ -353,12 +352,12 @@
 
             if (currentTab === 'unitPricing') {
                 datasets.push({
-                    label: 'Average Low Price',
+                    label: 'Average Low Range',
                     data: labels.map(l => parseFloat((grouped[l].sum1 / grouped[l].count).toFixed(2))),
                     backgroundColor: '#4b5563' 
                 });
                 datasets.push({
-                    label: 'Average High Price',
+                    label: 'Average High Range',
                     data: labels.map(l => parseFloat((grouped[l].sum2 / grouped[l].count).toFixed(2))),
                     backgroundColor: '#0033a0' 
                 });
@@ -446,12 +445,24 @@
                 headers.forEach(h => {
                     let val = row[h] !== undefined ? row[h] : '';
                     
-                    if (val !== '' && !isNaN(val)) {
+                    if (val !== '') {
                         const hUpper = h.toUpperCase();
-                        if (hUpper.includes('PRICE') || hUpper.includes('COST')) {
-                            val = '$' + parseFloat(val).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                        } else if (hUpper.includes('VARIANCE')) {
-                            val = parseFloat(val).toFixed(2) + '%';
+                        
+                        // Clean the value of non-numeric characters for calculation, avoiding structural columns
+                        const skipFormatCols = ['TIMESTAMP', 'QUARTER', 'COMPANY', 'REGION', 'BID PACKAGE', 'ITEM', 'UNIT OF MEASURE'];
+                        
+                        if (!skipFormatCols.includes(hUpper)) {
+                            let cleanVal = parseFloat(String(val).replace(/[^0-9.-]+/g, ""));
+                            
+                            if (!isNaN(cleanVal)) {
+                                if (hUpper.includes('PRICE') || hUpper.includes('COST') || hUpper.includes('RANGE')) {
+                                    val = '$' + cleanVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                } else if (hUpper.includes('VARIANCE') || hUpper.includes('ESCALATION')) {
+                                    val = cleanVal + '%';
+                                } else if (hUpper.includes('LEAD') || hUpper.includes('TIME')) {
+                                    val = cleanVal + ' Weeks';
+                                }
+                            }
                         }
                     }
                     
