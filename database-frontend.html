@@ -52,13 +52,6 @@
         .header-bar h2 { margin: 0; color: #0033a0; font-size: 24px; }
         .header-bar img { height: 50px; width: auto; object-fit: contain; margin-left: 20px; }
         
-        /* Controls & Filters */
-        .controls-bar { display: flex; gap: 15px; margin-bottom: 25px; background: #f9fafb; padding: 15px; border-radius: 6px; border: 1px solid #e5e7eb; flex-wrap: wrap; }
-        .control-group { display: flex; flex-direction: column; flex: 1; min-width: 200px; }
-        .control-group label { font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; color: #6b7280; }
-        select { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; color: #4b5563; background-color: #fff; outline: none; }
-        select:focus { border-color: #0033a0; box-shadow: 0 0 0 1px #0033a0; }
-        
         /* Tabs */
         .tabs { display: flex; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; gap: 10px; flex-wrap: wrap; }
         .tab-btn { background: transparent; color: #6b7280; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; font-size: 16px; transition: color 0.2s; white-space: nowrap; }
@@ -114,15 +107,6 @@
                         <h2>Market Conditions</h2>
                     </div>
                     <img src="becklogo.png" alt="Company Logo">
-                </div>
-
-                <div class="controls-bar">
-                    <div class="control-group">
-                        <label>Filter by Region</label>
-                        <select id="filter-region" onchange="applyFilters()">
-                            <option value="">All Regions</option>
-                        </select>
-                    </div>
                 </div>
 
                 <div class="tabs">
@@ -182,7 +166,6 @@
                 
                 rawData = data;
                 renderSidebar();
-                populateFilters();
                 applyFilters(); 
             } catch (error) {
                 console.error('Fetch error:', error);
@@ -252,38 +235,14 @@
             applyFilters(); 
         }
 
-        function populateFilters() {
-            const regions = new Set();
-
-            ['unitPricing', 'leadTimes', 'priceEscalation'].forEach(tab => {
-                rawData[tab].forEach(row => {
-                    if (row['REGION']) regions.add(row['REGION']);
-                });
-            });
-
-            const addOptions = (set, selectId) => {
-                const select = document.getElementById(selectId);
-                if (!select) return; // safety check
-                
-                Array.from(set).sort().forEach(val => {
-                    select.insertAdjacentHTML('beforeend', `<option value="${val}">${val}</option>`);
-                });
-            };
-
-            addOptions(regions, 'filter-region');
-        }
-
         function applyFilters() {
-            const regionFilter = document.getElementById('filter-region') ? document.getElementById('filter-region').value : '';
-
             const currentData = rawData[currentTab];
             
             const filteredData = currentData.filter(row => {
-                const matchRegion = !regionFilter || row['REGION'] === regionFilter;
                 const matchPackage = !activePackageFilter || row['BID PACKAGE'] === activePackageFilter;
                 const matchItem = !activeItemFilter || row['ITEM'] === activeItemFilter;
                 
-                return matchRegion && matchPackage && matchItem;
+                return matchPackage && matchItem;
             });
 
             renderChart(filteredData);
@@ -444,7 +403,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'top' },
+                        legend: { display: false }, // Legend removed as requested
                         tooltip: {
                             callbacks: {
                                 label: tooltipCallback
@@ -506,14 +465,14 @@
                             let cleanVal = parseFloat(String(val).replace(/[^0-9.-]+/g, ""));
                             
                             if (!isNaN(cleanVal)) {
-                                if (hUpper.includes('PRICE') || hUpper.includes('COST') || hUpper.includes('RANGE')) {
-                                    val = '$' + cleanVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                                } else if (hUpper.includes('VARIANCE') || hUpper.includes('ESCALATION')) {
-                                    // Table: Fix Google Sheets decimal to percentage mapping visually
+                                // Checking for Variance/Escalation FIRST prevents "Price Variance" from formatting as currency
+                                if (hUpper.includes('VARIANCE') || hUpper.includes('ESCALATION')) {
                                     if (Math.abs(cleanVal) <= 1 && cleanVal !== 0 && !String(val).includes('%')) {
                                         cleanVal = cleanVal * 100;
                                     }
                                     val = parseFloat(cleanVal.toFixed(2)) + '%';
+                                } else if (hUpper.includes('PRICE') || hUpper.includes('COST') || hUpper.includes('RANGE')) {
+                                    val = '$' + cleanVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                                 } else if (hUpper.includes('LEAD') || hUpper.includes('TIME')) {
                                     val = cleanVal + ' Weeks';
                                 }
