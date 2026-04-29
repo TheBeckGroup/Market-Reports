@@ -122,12 +122,6 @@
                             <option value="">All Regions</option>
                         </select>
                     </div>
-                    <div class="control-group">
-                        <label>Filter by Company</label>
-                        <select id="filter-company" onchange="applyFilters()">
-                            <option value="">All Companies</option>
-                        </select>
-                    </div>
                 </div>
 
                 <div class="tabs">
@@ -253,13 +247,10 @@
 
         function populateFilters() {
             const regions = new Set();
-            const companies = new Set();
 
             ['unitPricing', 'leadTimes', 'priceEscalation'].forEach(tab => {
                 rawData[tab].forEach(row => {
                     if (row['REGION']) regions.add(row['REGION']);
-                    const company = row['COMPANY'] || row['COMPANY NAME'];
-                    if (company) companies.add(company);
                 });
             });
 
@@ -273,24 +264,19 @@
             };
 
             addOptions(regions, 'filter-region');
-            addOptions(companies, 'filter-company');
         }
 
         function applyFilters() {
             const regionFilter = document.getElementById('filter-region') ? document.getElementById('filter-region').value : '';
-            const companyFilter = document.getElementById('filter-company') ? document.getElementById('filter-company').value : '';
 
             const currentData = rawData[currentTab];
             
             const filteredData = currentData.filter(row => {
-                const companyName = row['COMPANY'] || row['COMPANY NAME'] || "";
-                
                 const matchRegion = !regionFilter || row['REGION'] === regionFilter;
-                const matchCompany = !companyFilter || companyName === companyFilter;
                 const matchPackage = !activePackageFilter || row['BID PACKAGE'] === activePackageFilter;
                 const matchItem = !activeItemFilter || row['ITEM'] === activeItemFilter;
                 
-                return matchRegion && matchCompany && matchPackage && matchItem;
+                return matchRegion && matchPackage && matchItem;
             });
 
             renderChart(filteredData);
@@ -330,29 +316,44 @@
             const labels = Object.keys(grouped);
             const datasets = [];
 
+            // NOTE: parseFloat is used below to ensure Chart.js scales correctly as numeric values instead of strings
             if (currentTab === 'unitPricing') {
                 datasets.push({
-                    label: 'Average Low Price ($)',
-                    data: labels.map(l => (grouped[l].sum1 / grouped[l].count).toFixed(2)),
+                    label: 'Average Low Price',
+                    data: labels.map(l => parseFloat((grouped[l].sum1 / grouped[l].count).toFixed(2))),
                     backgroundColor: '#4b5563' 
                 });
                 datasets.push({
-                    label: 'Average High Price ($)',
-                    data: labels.map(l => (grouped[l].sum2 / grouped[l].count).toFixed(2)),
+                    label: 'Average High Price',
+                    data: labels.map(l => parseFloat((grouped[l].sum2 / grouped[l].count).toFixed(2))),
                     backgroundColor: '#0033a0' 
                 });
             } else if (currentTab === 'leadTimes') {
                 datasets.push({
-                    label: 'Average Lead Time (Weeks)',
-                    data: labels.map(l => (grouped[l].sum1 / grouped[l].count).toFixed(1)),
+                    label: 'Average Lead Time',
+                    data: labels.map(l => parseFloat((grouped[l].sum1 / grouped[l].count).toFixed(1))),
                     backgroundColor: '#0033a0' 
                 });
             } else if (currentTab === 'priceEscalation') {
                 datasets.push({
-                    label: 'Average Price Variance (%)',
-                    data: labels.map(l => (grouped[l].sum1 / grouped[l].count).toFixed(2)),
+                    label: 'Average Price Variance',
+                    data: labels.map(l => parseFloat((grouped[l].sum1 / grouped[l].count).toFixed(2))),
                     backgroundColor: '#0033a0'
                 });
+            }
+
+            // Dynamic formatters for Y-axis and Tooltips based on the active tab
+            let yAxisCallback = function(value) { return value; };
+            let tooltipCallback = function(context) { return context.dataset.label + ': ' + context.parsed.y; };
+
+            if (currentTab === 'unitPricing') {
+                yAxisCallback = function(value) { return '$' + value.toLocaleString(); };
+                tooltipCallback = function(context) { return context.dataset.label + ': $' + context.parsed.y.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
+            } else if (currentTab === 'priceEscalation') {
+                yAxisCallback = function(value) { return value + '%'; };
+                tooltipCallback = function(context) { return context.dataset.label + ': ' + context.parsed.y + '%'; };
+            } else if (currentTab === 'leadTimes') {
+                tooltipCallback = function(context) { return context.dataset.label + ': ' + context.parsed.y + ' Weeks'; };
             }
 
             myChart = new Chart(ctx, {
@@ -362,10 +363,20 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'top' }
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: tooltipCallback
+                            }
+                        }
                     },
                     scales: {
-                        y: { beginAtZero: true }
+                        y: { 
+                            beginAtZero: true,
+                            ticks: {
+                                callback: yAxisCallback
+                            }
+                        }
                     }
                 }
             });
@@ -401,8 +412,13 @@
                 headers.forEach(h => {
                     let val = row[h] !== undefined ? row[h] : '';
                     
-                    if (val !== '' && !isNaN(val) && (h.toUpperCase().includes('PRICE') || h.toUpperCase().includes('COST'))) {
-                        val = '$' + parseFloat(val).toFixed(2);
+                    if (val !== '' && !isNaN(val)) {
+                        const hUpper = h.toUpperCase();
+                        if (hUpper.includes('PRICE') || hUpper.includes('COST')) {
+                            val = '$' + parseFloat(val).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        } else if (hUpper.includes('VARIANCE')) {
+                            val = parseFloat(val).toFixed(2) + '%';
+                        }
                     }
                     
                     html += `<td>${val}</td>`;
