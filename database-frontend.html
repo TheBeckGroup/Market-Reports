@@ -125,7 +125,7 @@
                 </div>
 
                 <div class="chart-container" id="chart-wrapper">
-                    <h3 id="chart-inner-title" style="text-align: center; color: #4b5563; margin-top: 0; margin-bottom: 15px; font-size: 16px; text-transform: uppercase;"></h3>
+                    <h3 id="chart-inner-title" style="text-align: left; margin-top: 0; margin-bottom: 15px; font-size: 16px;"></h3>
                     <div class="chart-inner-wrapper">
                         <canvas id="dataChart"></canvas>
                     </div>
@@ -307,13 +307,17 @@
             }
 
             const chartInnerTitle = document.getElementById('chart-inner-title');
+            let titlePrefix = '';
+            
             if (currentTab === 'unitPricing') {
-                chartInnerTitle.textContent = `COST/${uom} - ${quarterStr || 'All Time'}`;
+                titlePrefix = `Cost/${uom}`;
             } else if (currentTab === 'leadTimes') {
-                chartInnerTitle.textContent = `LEAD TIME (WEEKS) - ${quarterStr || 'All Time'}`;
+                titlePrefix = `Lead Time (Weeks)`;
             } else if (currentTab === 'priceEscalation') {
-                chartInnerTitle.textContent = `PRICE VARIANCE (%) - ${quarterStr || 'All Time'}`;
+                titlePrefix = `Price Variance (%)`;
             }
+
+            chartInnerTitle.innerHTML = `<span style="color: #0033a0;">${titlePrefix}</span> <span style="color: #4b5563; text-transform: uppercase;">- ${quarterStr || 'All Time'}</span>`;
 
             // FUZZY DATA MATCHER with Percentage Handling
             const getCleanValue = (row, keywords, isPercent = false) => {
@@ -438,10 +442,37 @@
                 tooltipCallback = function(context) { return context.dataset.label + ': ' + context.parsed.y + ' Weeks'; };
             }
 
+            // Custom plugin to draw the light gray connector stem between low and high ranges
+            const stemPlugin = {
+                id: 'stemPlugin',
+                beforeDatasetsDraw(chart) {
+                    if (currentTab !== 'unitPricing') return;
+                    const metaLow = chart.getDatasetMeta(0);
+                    const metaHigh = chart.getDatasetMeta(1);
+                    if (!metaLow || !metaHigh || metaLow.hidden || metaHigh.hidden) return;
+
+                    const ctx = chart.ctx;
+                    ctx.save();
+                    ctx.strokeStyle = '#d1d5db'; // Light gray
+                    ctx.lineWidth = 3;
+
+                    metaLow.data.forEach((point, index) => {
+                        const highPoint = metaHigh.data[index];
+                        if (point && highPoint && !point.skip && !highPoint.skip) {
+                            ctx.beginPath();
+                            ctx.moveTo(point.x, point.y);
+                            ctx.lineTo(highPoint.x, highPoint.y);
+                            ctx.stroke();
+                        }
+                    });
+                    ctx.restore();
+                }
+            };
+
             myChart = new Chart(ctx, {
                 type: 'bar', // Base type, overridden by unitPricing datasets
                 data: { labels, datasets },
-                plugins: [ChartDataLabels],
+                plugins: [ChartDataLabels, stemPlugin],
                 options: {
                     layout: {
                         padding: { top: 35, bottom: 20 } // Prevents datalabels from clipping off the canvas edges
@@ -506,6 +537,13 @@
             html += `</tr></thead><tbody>`;
             
             dataArray.forEach(row => {
+                // Find the unit of measure for this specific row to append to prices
+                let rowUOM = '';
+                const uomKey = Object.keys(row).find(k => k.toUpperCase().includes('UNIT OF MEASURE') || k.toUpperCase() === 'UOM');
+                if (uomKey && row[uomKey]) {
+                    rowUOM = row[uomKey];
+                }
+
                 html += `<tr>`;
                 headers.forEach(h => {
                     let val = row[h] !== undefined ? row[h] : '';
@@ -528,6 +566,7 @@
                                     val = parseFloat(cleanVal.toFixed(2)) + '%';
                                 } else if (hUpper.includes('PRICE') || hUpper.includes('COST') || hUpper.includes('RANGE')) {
                                     val = '$' + cleanVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                    if (rowUOM) val += '/' + rowUOM; // Append the UoM suffix
                                 } else if (hUpper.includes('LEAD') || hUpper.includes('TIME')) {
                                     val = cleanVal + ' Weeks';
                                 }
