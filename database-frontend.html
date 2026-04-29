@@ -418,12 +418,29 @@
             const leadData = [];
             const varData = [];
 
+            // Generate region colors mapping for consistency with trend chart
+            const colors = ['#0033a0', '#4b5563', '#3b82f6']; // Company Blue, Dark Gray, Light Blue
+            let uniqueRegions = [...new Set(dataArray.map(r => r['REGION']).filter(r => r))];
+            uniqueRegions.sort((a, b) => {
+                const isTampaA = a.toUpperCase().includes('TAMPA') || a.toUpperCase().includes('WEST FLORIDA');
+                const isTampaB = b.toUpperCase().includes('TAMPA') || b.toUpperCase().includes('WEST FLORIDA');
+                if (isTampaA && !isTampaB) return -1;
+                if (!isTampaA && isTampaB) return 1;
+                return a.localeCompare(b);
+            });
+
+            const bgColors = [];
+
             // Plot Aggregated Data Points
             dataArray.forEach(row => {
                 const region = row['REGION'] || 'No Region';
                 const quarter = row['QUARTER'] || '';
                 
                 labels.push(quarter ? [region, quarter] : [region]);
+                
+                // Map the region to the matching color from the trend chart
+                const rIdx = uniqueRegions.indexOf(region);
+                bgColors.push(colors[rIdx !== -1 ? (rIdx % colors.length) : 0]);
                 
                 if (currentTab === 'unitPricing') {
                     lowData.push(row['LOW RANGE']);
@@ -445,8 +462,10 @@
                     pointHoverRadius: 8,
                     label: 'Low Range',
                     data: lowData,
-                    backgroundColor: '#4b5563', 
-                    borderColor: '#4b5563',
+                    backgroundColor: bgColors, 
+                    borderColor: bgColors,
+                    pointBackgroundColor: bgColors,
+                    pointBorderColor: bgColors,
                     datalabels: { align: 'bottom', anchor: 'start' }
                 });
                 datasets.push({
@@ -456,8 +475,10 @@
                     pointHoverRadius: 8,
                     label: 'High Range',
                     data: highData,
-                    backgroundColor: '#0033a0', 
-                    borderColor: '#0033a0',
+                    backgroundColor: bgColors, 
+                    borderColor: bgColors,
+                    pointBackgroundColor: bgColors,
+                    pointBorderColor: bgColors,
                     datalabels: { align: 'top', anchor: 'end' }
                 });
             } else if (currentTab === 'leadTimes') {
@@ -465,7 +486,7 @@
                     type: 'bar',
                     label: 'Lead Time',
                     data: leadData,
-                    backgroundColor: '#0033a0',
+                    backgroundColor: bgColors,
                     datalabels: { align: 'top', anchor: 'end' }
                 });
             } else if (currentTab === 'priceEscalation') {
@@ -473,7 +494,7 @@
                     type: 'bar',
                     label: 'Price Variance',
                     data: varData,
-                    backgroundColor: '#0033a0',
+                    backgroundColor: bgColors,
                     datalabels: { align: 'top', anchor: 'end' }
                 });
             }
