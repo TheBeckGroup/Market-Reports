@@ -317,8 +317,8 @@
             placeholder.style.display = 'none';
             chartWrapper.style.display = 'block';
 
-            // FUZZY DATA MATCHER
-            const getCleanValue = (row, keywords) => {
+            // FUZZY DATA MATCHER with Percentage Handling
+            const getCleanValue = (row, keywords, isPercent = false) => {
                 const keys = Object.keys(row);
                 const targetKey = keys.find(k => {
                     const upper = k.toUpperCase();
@@ -331,8 +331,16 @@
                 if (val === undefined || val === null || val === '') return 0;
                 
                 // Strip all non-numeric characters (like '$', '%', ',') before parsing
-                const parsed = parseFloat(String(val).replace(/[^0-9.-]+/g, ""));
-                return isNaN(parsed) ? 0 : parsed;
+                let parsed = parseFloat(String(val).replace(/[^0-9.-]+/g, ""));
+                if (isNaN(parsed)) return 0;
+
+                // Fix: Google Sheets translates percentage formatted columns to decimals under the hood (e.g. 5% -> 0.05).
+                // If it is supposed to be a percent, and it looks like a decimal fraction, correct it.
+                if (isPercent && Math.abs(parsed) <= 1 && parsed !== 0 && !String(val).includes('%')) {
+                    parsed = parsed * 100;
+                }
+
+                return parsed;
             };
 
             const labels = [];
@@ -367,8 +375,9 @@
                     
                     leadData.push(lead);
                 } else if (currentTab === 'priceEscalation') {
-                    let variance = getCleanValue(row, ['VARIANCE']);
-                    if (variance === 0) variance = getCleanValue(row, ['ESCALATION']); 
+                    // Pass true to flag this as a percentage that might need decimal correction
+                    let variance = getCleanValue(row, ['VARIANCE'], true);
+                    if (variance === 0) variance = getCleanValue(row, ['ESCALATION'], true); 
                     
                     varData.push(variance);
                 }
@@ -443,6 +452,9 @@
                         }
                     },
                     scales: {
+                        x: {
+                            offset: true // Fixes the issue where outer data points hugged the very edge of the chart
+                        },
                         y: { 
                             beginAtZero: true,
                             ticks: {
@@ -497,7 +509,11 @@
                                 if (hUpper.includes('PRICE') || hUpper.includes('COST') || hUpper.includes('RANGE')) {
                                     val = '$' + cleanVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                                 } else if (hUpper.includes('VARIANCE') || hUpper.includes('ESCALATION')) {
-                                    val = cleanVal + '%';
+                                    // Table: Fix Google Sheets decimal to percentage mapping visually
+                                    if (Math.abs(cleanVal) <= 1 && cleanVal !== 0 && !String(val).includes('%')) {
+                                        cleanVal = cleanVal * 100;
+                                    }
+                                    val = parseFloat(cleanVal.toFixed(2)) + '%';
                                 } else if (hUpper.includes('LEAD') || hUpper.includes('TIME')) {
                                     val = cleanVal + ' Weeks';
                                 }
