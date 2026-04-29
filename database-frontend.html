@@ -64,16 +64,7 @@
         .chart-container { position: relative; height: 400px; width: 100%; margin-bottom: 40px; display: none; flex-direction: column; }
         .chart-inner-wrapper { position: relative; flex: 1; width: 100%; min-height: 0; }
         
-        /* Table Styling */
-        .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 800px; font-size: 14px; }
-        th, td { padding: 12px 15px; border: 1px solid #e5e7eb; text-align: left; }
-        th { background-color: #0033a0; color: white; font-weight: 600; white-space: nowrap; }
-        tr:nth-child(even) { background-color: #f9fafb; }
-        tr:hover { background-color: #f3f4f6; }
-        
         .loading { text-align: center; font-size: 18px; color: #6b7280; padding: 40px; }
-        .no-data { text-align: center; color: #6b7280; padding: 20px; font-style: italic; }
 
         .mobile-toggle { display: none; }
 
@@ -117,13 +108,14 @@
                     <button class="tab-btn" onclick="switchTab('priceEscalation')">Price Escalation</button>
                 </div>
 
-                <!-- Graphical Chart Area -->
+                <!-- Placeholder when no item is selected -->
                 <div id="chart-placeholder" class="chart-placeholder" style="display: none;">
                     <span style="font-size: 24px; display: block; margin-bottom: 10px;">📊</span>
                     <strong>Select an Item</strong><br>
                     Please select a specific item from the sidebar on the left to view market trends and variations across regions and time.
                 </div>
 
+                <!-- Primary Bar/Scatter Chart -->
                 <div class="chart-container" id="chart-wrapper">
                     <h3 id="chart-inner-title" style="text-align: left; margin-top: 0; margin-bottom: 15px; font-size: 16px;"></h3>
                     <div class="chart-inner-wrapper">
@@ -131,9 +123,14 @@
                     </div>
                 </div>
 
-                <div id="data-container" class="table-container">
-                    <p class="loading">Fetching database records...</p>
+                <!-- Time Series Line Chart -->
+                <div class="chart-container" id="trend-chart-wrapper">
+                    <h3 style="text-align: left; margin-top: 0; margin-bottom: 15px; font-size: 16px; color: #0033a0;">Trend Over Time</h3>
+                    <div class="chart-inner-wrapper">
+                        <canvas id="trendChart"></canvas>
+                    </div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -145,12 +142,13 @@
         let rawData = { unitPricing: [], leadTimes: [], priceEscalation: [] };
         let currentTab = 'unitPricing';
         let myChart = null; 
+        let myTrendChart = null; // Store trend chart instance
         
         // State tracking for the sidebar filters
         let activePackageFilter = "";
         let activeItemFilter = "";
 
-        // Intelligent Number Extractor (Moved to Global Scope)
+        // Intelligent Number Extractor
         const getCleanValue = (row, keywords, isPercent = false) => {
             const keys = Object.keys(row);
             const targetKey = keys.find(k => {
@@ -283,7 +281,8 @@
             } catch (error) {
                 console.error('Fetch error:', error);
                 document.getElementById('sidebar-menu').innerHTML = '';
-                document.getElementById('data-container').innerHTML = `<p style="color:red; text-align:center;">Failed to connect to the database. Error: ${error.message}</p>`;
+                document.getElementById('chart-placeholder').style.display = 'block';
+                document.getElementById('chart-placeholder').innerHTML = `<p style="color:red;">Failed to connect to the database. Error: ${error.message}</p>`;
             }
         }
 
@@ -356,7 +355,7 @@
             const aggregatedData = aggregateData(filteredData, currentTab);
 
             renderChart(aggregatedData);
-            renderTable(aggregatedData);
+            renderTrendChart(aggregatedData);
         }
 
         function renderChart(dataArray) {
@@ -374,19 +373,9 @@
             }
 
             // ENFORCE 1-ITEM RULE
-            if (!activeItemFilter) {
+            if (!activeItemFilter || !dataArray || dataArray.length === 0) {
                 chartWrapper.style.display = 'none';
-                if (dataArray && dataArray.length > 0) {
-                    placeholder.style.display = 'block';
-                } else {
-                    placeholder.style.display = 'none';
-                }
-                return;
-            }
-
-            if (!dataArray || dataArray.length === 0) {
-                chartWrapper.style.display = 'none';
-                placeholder.style.display = 'none';
+                placeholder.style.display = 'block';
                 return;
             }
             
@@ -414,7 +403,7 @@
             let titlePrefix = '';
             
             if (currentTab === 'unitPricing') {
-                titlePrefix = `cost/${uom}`;
+                titlePrefix = `Cost/${uom}`; // Proper capitalization applied here
             } else if (currentTab === 'leadTimes') {
                 titlePrefix = `Lead Time (Weeks)`;
             } else if (currentTab === 'priceEscalation') {
@@ -434,7 +423,6 @@
                 const region = row['REGION'] || 'No Region';
                 const quarter = row['QUARTER'] || '';
                 
-                // Chart.js natively accepts an array of strings to display multi-line labels
                 labels.push(quarter ? [region, quarter] : [region]);
                 
                 if (currentTab === 'unitPricing') {
@@ -498,9 +486,10 @@
                 tooltipCallback = function(context) { return context.dataset.label + ': $' + context.parsed.y.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
             } else if (currentTab === 'priceEscalation') {
                 yAxisCallback = function(value) { return value + '%'; };
-                tooltipCallback = function(context) { return context.dataset.label + ': ' + context.parsed.y + '%'; };
+                tooltipCallback = function(context) { return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%'; };
             } else if (currentTab === 'leadTimes') {
-                tooltipCallback = function(context) { return context.dataset.label + ': ' + context.parsed.y + ' Weeks'; };
+                // Remove decimal from weeks representation
+                tooltipCallback = function(context) { return context.dataset.label + ': ' + Math.round(context.parsed.y) + ' Weeks'; };
             }
 
             // Custom plugin to draw the light gray connector stem between low and high ranges
@@ -547,7 +536,7 @@
                             formatter: function(value, context) {
                                 if (currentTab === 'unitPricing') return '$' + value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                                 if (currentTab === 'priceEscalation') return value.toFixed(2) + '%';
-                                if (currentTab === 'leadTimes') return value.toFixed(1) + ' Wks';
+                                if (currentTab === 'leadTimes') return Math.round(value) + ' Wks'; // Rounded integer
                             }
                         },
                         legend: { display: false }, 
@@ -572,70 +561,109 @@
             });
         }
 
-        function renderTable(dataArray) {
-            const container = document.getElementById('data-container');
+        function renderTrendChart(dataArray) {
+            const trendWrapper = document.getElementById('trend-chart-wrapper');
+            const ctx = document.getElementById('trendChart').getContext('2d');
             
-            if (!dataArray || dataArray.length === 0) {
-                container.innerHTML = "<p class='no-data'>No submissions match your current filters.</p>";
+            if (myTrendChart) myTrendChart.destroy();
+
+            if (!activeItemFilter || !dataArray || dataArray.length === 0) {
+                trendWrapper.style.display = 'none';
                 return;
             }
 
-            let allKeys = new Set();
-            dataArray.forEach(row => Object.keys(row).forEach(k => allKeys.add(k)));
-            let headers = Array.from(allKeys);
-            
-            // Reordered without Company Name
-            const preferredOrder = ['REGION', 'QUARTER', 'BID PACKAGE', 'ITEM', 'UNIT OF MEASURE'];
-            headers.sort((a, b) => {
-               let indexA = preferredOrder.indexOf(a.toUpperCase());
-               let indexB = preferredOrder.indexOf(b.toUpperCase());
-               if (indexA === -1) indexA = 999;
-               if (indexB === -1) indexB = 999;
-               return indexA - indexB;
+            // Extract unique quarters chronologically
+            let quarters = [...new Set(dataArray.map(r => r['QUARTER']).filter(q => q))];
+            quarters.sort((a, b) => {
+                let yrA = a.match(/\d{4}/); yrA = yrA ? yrA[0] : a;
+                let yrB = b.match(/\d{4}/); yrB = yrB ? yrB[0] : b;
+                if (yrA !== yrB) return yrA.localeCompare(yrB);
+                return a.localeCompare(b);
             });
 
-            let html = `<table><thead><tr>`;
-            headers.forEach(h => html += `<th>${h}</th>`);
-            html += `</tr></thead><tbody>`;
+            if (quarters.length === 0) {
+                trendWrapper.style.display = 'none';
+                return;
+            }
             
-            dataArray.forEach(row => {
-                let rowUOM = '';
-                const uomKey = Object.keys(row).find(k => k.toUpperCase().includes('UNIT OF MEASURE') || k.toUpperCase() === 'UOM');
-                if (uomKey && row[uomKey]) {
-                    rowUOM = row[uomKey];
-                }
+            trendWrapper.style.display = 'flex';
 
-                html += `<tr>`;
-                headers.forEach(h => {
-                    let val = row[h] !== undefined ? row[h] : '';
+            // Extract Regions 
+            let regions = [...new Set(dataArray.map(r => r['REGION']).filter(r => r))];
+            regions.sort((a, b) => {
+                const isTampaA = a.toUpperCase().includes('TAMPA') || a.toUpperCase().includes('WEST FLORIDA');
+                const isTampaB = b.toUpperCase().includes('TAMPA') || b.toUpperCase().includes('WEST FLORIDA');
+                if (isTampaA && !isTampaB) return -1;
+                if (!isTampaA && isTampaB) return 1;
+                return a.localeCompare(b);
+            });
+
+            const colors = ['#0033a0', '#4b5563', '#3b82f6']; // Company Blue, Dark Gray, Light Blue
+
+            const datasets = regions.map((region, idx) => {
+                const dataPoints = quarters.map(q => {
+                    const row = dataArray.find(r => r['REGION'] === region && r['QUARTER'] === q);
+                    if (!row) return null;
                     
-                    if (val !== '') {
-                        const hUpper = h.toUpperCase();
-                        const skipFormatCols = ['TIMESTAMP', 'QUARTER', 'REGION', 'BID PACKAGE', 'ITEM', 'UNIT OF MEASURE'];
-                        
-                        if (!skipFormatCols.includes(hUpper)) {
-                            let cleanVal = parseFloat(String(val).replace(/[^0-9.-]+/g, ""));
-                            
-                            if (!isNaN(cleanVal)) {
-                                if (hUpper.includes('VARIANCE') || hUpper.includes('ESCALATION')) {
-                                    val = parseFloat(cleanVal.toFixed(2)) + '%';
-                                } else if (hUpper.includes('PRICE') || hUpper.includes('COST') || hUpper.includes('RANGE')) {
-                                    val = '$' + cleanVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                                    if (rowUOM) val += '/' + rowUOM;
-                                } else if (hUpper.includes('LEAD') || hUpper.includes('TIME')) {
-                                    val = cleanVal.toFixed(1) + ' Weeks';
-                                }
-                            }
+                    if (currentTab === 'unitPricing') return (row['LOW RANGE'] + row['HIGH RANGE']) / 2; // Average of ranges
+                    if (currentTab === 'leadTimes') return row['LEAD TIME'];
+                    if (currentTab === 'priceEscalation') return row['PRICE VARIANCE'];
+                });
+                
+                return {
+                    label: region,
+                    data: dataPoints,
+                    borderColor: colors[idx % colors.length],
+                    backgroundColor: colors[idx % colors.length],
+                    tension: 0.3, // Adds smooth curving to lines
+                    fill: false,
+                    spanGaps: true, // Connect lines across missing quarter data
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    datalabels: { display: false } // Disabled so lines aren't cluttered
+                };
+            });
+
+            let yAxisCallback = function(value) { return value; };
+            let tooltipCallback = function(context) { 
+                let val = context.parsed.y;
+                if (currentTab === 'unitPricing') return context.dataset.label + ' Avg: $' + val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                if (currentTab === 'priceEscalation') return context.dataset.label + ': ' + val.toFixed(2) + '%';
+                if (currentTab === 'leadTimes') return context.dataset.label + ': ' + Math.round(val) + ' Weeks';
+                return val;
+            };
+
+            if (currentTab === 'unitPricing') {
+                yAxisCallback = function(value) { return '$' + value.toLocaleString(); };
+            } else if (currentTab === 'priceEscalation') {
+                yAxisCallback = function(value) { return value + '%'; };
+            }
+
+            myTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: quarters, datasets },
+                plugins: [ChartDataLabels],
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            display: true, 
+                            position: 'top',
+                            labels: { usePointStyle: true, boxWidth: 8 }
+                        },
+                        tooltip: { 
+                            callbacks: { label: tooltipCallback } 
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            ticks: { callback: yAxisCallback }
                         }
                     }
-                    
-                    html += `<td>${val}</td>`;
-                });
-                html += `</tr>`;
+                }
             });
-            
-            html += `</tbody></table>`;
-            container.innerHTML = html;
         }
     </script>
 </body>
