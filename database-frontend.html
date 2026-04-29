@@ -445,6 +445,17 @@
                 return;
             }
 
+            // Map colors for the vertical accent bars matching the trend chart
+            const colors = ['#0033a0', '#4b5563', '#3b82f6']; 
+            let uniqueRegions = [...new Set(dataArray.map(r => r['REGION']).filter(r => r))];
+            uniqueRegions.sort((a, b) => {
+                const isTampaA = a.toUpperCase().includes('TAMPA') || a.toUpperCase().includes('WEST FLORIDA');
+                const isTampaB = b.toUpperCase().includes('TAMPA') || b.toUpperCase().includes('WEST FLORIDA');
+                if (isTampaA && !isTampaB) return -1;
+                if (!isTampaA && isTampaB) return 1;
+                return a.localeCompare(b);
+            });
+
             let uom = '';
             if (dataArray.length > 0 && dataArray[0]['UNIT OF MEASURE']) {
                 uom = '/' + dataArray[0]['UNIT OF MEASURE'];
@@ -461,7 +472,11 @@
             html += `</tr></thead><tbody>`;
 
             dataArray.forEach(row => {
-                html += `<tr><td><strong>${row['REGION'] || 'N/A'}</strong></td>`;
+                const region = row['REGION'] || 'N/A';
+                const rIdx = uniqueRegions.indexOf(region);
+                const rColor = rIdx !== -1 ? colors[rIdx % colors.length] : 'transparent';
+
+                html += `<tr><td style="border-left: 4px solid ${rColor};"><strong>${region}</strong></td>`;
                 if (currentTab === 'unitPricing') {
                     let low = row['LOW RANGE'] !== undefined ? '$' + row['LOW RANGE'].toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + uom : '-';
                     let high = row['HIGH RANGE'] !== undefined ? '$' + row['HIGH RANGE'].toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + uom : '-';
