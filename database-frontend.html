@@ -60,7 +60,7 @@
         select:focus { border-color: #0033a0; box-shadow: 0 0 0 1px #0033a0; }
         
         /* Tabs */
-        .tabs { display: flex; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; gap: 10px; overflow-x: auto; }
+        .tabs { display: flex; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; gap: 10px; flex-wrap: wrap; }
         .tab-btn { background: transparent; color: #6b7280; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; font-size: 16px; transition: color 0.2s; white-space: nowrap; }
         .tab-btn:hover { color: #0033a0; }
         .tab-btn.active { color: #0033a0; border-bottom: 3px solid #0033a0; margin-bottom: -2px; }
@@ -296,6 +296,13 @@
             
             chartWrapper.style.display = 'block';
 
+            // Helper function to strip formatting ($, %, commas) so Chart.js can calculate proper scales
+            const cleanNum = (val) => {
+                if (val === undefined || val === null || val === '') return 0;
+                const parsed = parseFloat(String(val).replace(/[^0-9.-]+/g, ""));
+                return isNaN(parsed) ? 0 : parsed;
+            };
+
             const grouped = {};
             dataArray.forEach(row => {
                 const item = row['ITEM'] || 'Unknown Item';
@@ -304,12 +311,12 @@
                 grouped[item].count++;
                 
                 if (currentTab === 'unitPricing') {
-                    grouped[item].sum1 += parseFloat(row['SUBMITTED LOW PRICE']) || 0;
-                    grouped[item].sum2 += parseFloat(row['SUBMITTED HIGH PRICE']) || 0;
+                    grouped[item].sum1 += cleanNum(row['SUBMITTED LOW PRICE']);
+                    grouped[item].sum2 += cleanNum(row['SUBMITTED HIGH PRICE']);
                 } else if (currentTab === 'leadTimes') {
-                    grouped[item].sum1 += parseFloat(row['SUBMITTED LEAD TIME']) || 0;
+                    grouped[item].sum1 += cleanNum(row['SUBMITTED LEAD TIME']);
                 } else if (currentTab === 'priceEscalation') {
-                    grouped[item].sum1 += parseFloat(row['SUBMITTED VARIANCE']) || 0;
+                    grouped[item].sum1 += cleanNum(row['SUBMITTED VARIANCE']);
                 }
             });
 
