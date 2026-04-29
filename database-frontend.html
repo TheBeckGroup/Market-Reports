@@ -150,6 +150,114 @@
         let activePackageFilter = "";
         let activeItemFilter = "";
 
+        // Intelligent Number Extractor (Moved to Global Scope)
+        const getCleanValue = (row, keywords, isPercent = false) => {
+            const keys = Object.keys(row);
+            const targetKey = keys.find(k => {
+                const upper = k.toUpperCase();
+                return keywords.every(kw => upper.includes(kw));
+            });
+            
+            if (!targetKey) return 0;
+            
+            const val = row[targetKey];
+            if (val === undefined || val === null || val === '') return 0;
+            
+            let parsed = parseFloat(String(val).replace(/[^0-9.-]+/g, ""));
+            if (isNaN(parsed)) return 0;
+
+            if (isPercent && Math.abs(parsed) <= 1 && parsed !== 0 && !String(val).includes('%')) {
+                parsed = parsed * 100;
+            }
+            return parsed;
+        };
+
+        // Data Aggregation Engine: Groups submissions by Region & Quarter and averages the values
+        function aggregateData(dataArray, tab) {
+            const grouped = {};
+            
+            dataArray.forEach(row => {
+                const region = (row['REGION'] || 'No Region').trim();
+                const quarter = (row['QUARTER'] || '').trim();
+                const item = row['ITEM'] || '';
+                
+                let uomVal = '';
+                const uomKey = Object.keys(row).find(k => k.toUpperCase().includes('UNIT OF MEASURE') || k.toUpperCase() === 'UOM');
+                if (uomKey) uomVal = row[uomKey];
+                
+                const key = `${region}|${quarter}`;
+                
+                if (!grouped[key]) {
+                    grouped[key] = { count: 0, region: region, quarter: quarter, item: item, uom: uomVal, sum1: 0, sum2: 0 };
+                }
+                
+                grouped[key].count++;
+                
+                if (tab === 'unitPricing') {
+                    let low = getCleanValue(row, ['LOW', 'RANGE']);
+                    if (low === 0) low = getCleanValue(row, ['SUBMITTED', 'LOW']); 
+                    if (low === 0) low = getCleanValue(row, ['LOW', 'PRICE']); 
+                    
+                    let high = getCleanValue(row, ['HIGH', 'RANGE']);
+                    if (high === 0) high = getCleanValue(row, ['SUBMITTED', 'HIGH']); 
+                    if (high === 0) high = getCleanValue(row, ['HIGH', 'PRICE']); 
+                    
+                    grouped[key].sum1 += low;
+                    grouped[key].sum2 += high;
+                } else if (tab === 'leadTimes') {
+                    let lead = getCleanValue(row, ['LEAD', 'TIME']);
+                    if (lead === 0) lead = getCleanValue(row, ['SUBMITTED', 'LEAD']); 
+                    grouped[key].sum1 += lead;
+                } else if (tab === 'priceEscalation') {
+                    let variance = getCleanValue(row, ['VARIANCE'], true);
+                    if (variance === 0) variance = getCleanValue(row, ['ESCALATION'], true); 
+                    grouped[key].sum1 += variance;
+                }
+            });
+            
+            const result = [];
+            for (let key in grouped) {
+                const g = grouped[key];
+                const newRow = {
+                    'REGION': g.region,
+                    'QUARTER': g.quarter,
+                    'ITEM': g.item,
+                    'UNIT OF MEASURE': g.uom
+                };
+                
+                if (tab === 'unitPricing') {
+                    newRow['LOW RANGE'] = g.sum1 / g.count;
+                    newRow['HIGH RANGE'] = g.sum2 / g.count;
+                } else if (tab === 'leadTimes') {
+                    newRow['LEAD TIME'] = g.sum1 / g.count;
+                } else if (tab === 'priceEscalation') {
+                    newRow['PRICE VARIANCE'] = g.sum1 / g.count;
+                }
+                
+                result.push(newRow);
+            }
+            
+            // Priority Sort: Tampa always first, then alphabetize Regions, then Quarter
+            result.sort((a, b) => {
+                const rA = (a['REGION'] || '').toUpperCase();
+                const rB = (b['REGION'] || '').toUpperCase();
+                const isTampaA = rA.includes('TAMPA') || rA.includes('WEST FLORIDA');
+                const isTampaB = rB.includes('TAMPA') || rB.includes('WEST FLORIDA');
+                
+                if (isTampaA && !isTampaB) return -1;
+                if (!isTampaA && isTampaB) return 1;
+                
+                if (rA < rB) return -1;
+                if (rA > rB) return 1;
+                
+                const qA = a['QUARTER'] || '';
+                const qB = b['QUARTER'] || '';
+                return qA.localeCompare(qB);
+            });
+            
+            return result;
+        }
+
         document.addEventListener("DOMContentLoaded", fetchSubmissions);
 
         // Sidebar Toggle Logic
@@ -179,11 +287,9 @@
             }
         }
 
-        // Draws the interactive sidebar
         function renderSidebar() {
             const packageMap = new Map();
 
-            // Map all packages to their nested items
             ['unitPricing', 'leadTimes', 'priceEscalation'].forEach(tab => {
                 rawData[tab].forEach(row => {
                     const pkg = row['BID PACKAGE'];
@@ -198,10 +304,9 @@
             const sidebar = document.getElementById('sidebar-menu');
             let html = `<div class="sidebar-btn ${activePackageFilter === '' ? 'active' : ''}" onclick="setSidebarFilter('', '')">View All Packages</div>`;
 
-            // Build accordion menu
             Array.from(packageMap.keys()).sort().forEach(pkg => {
                 const isPkgActive = activePackageFilter === pkg;
-                const safePkg = pkg.replace(/'/g, "\\'").replace(/"/g, '&quot;'); // Escape for HTML JS params
+                const safePkg = pkg.replace(/'/g, "\\'").replace(/"/g, '&quot;'); 
                 
                 html += `
                     <div class="menu-group">
@@ -209,7 +314,6 @@
                         <div class="sub-menu ${isPkgActive ? 'open' : ''}">
                 `;
                 
-                // Only render items if the package is open to keep HTML clean
                 if (isPkgActive) {
                     html += `<div class="sub-item ${activeItemFilter === '' ? 'active' : ''}" onclick="setSidebarFilter('${safePkg}', '')">-- All Items --</div>`;
                     Array.from(packageMap.get(pkg)).sort().forEach(item => {
@@ -223,12 +327,11 @@
             sidebar.innerHTML = html;
         }
 
-        // Handles clicks from the sidebar
         window.setSidebarFilter = function(pkg, item) {
             activePackageFilter = pkg;
             activeItemFilter = item;
-            renderSidebar(); // Redraw menu to show active states
-            applyFilters();  // Redraw charts and tables
+            renderSidebar(); 
+            applyFilters();  
         }
 
         function switchTab(tabName) {
@@ -246,12 +349,14 @@
             const filteredData = currentData.filter(row => {
                 const matchPackage = !activePackageFilter || row['BID PACKAGE'] === activePackageFilter;
                 const matchItem = !activeItemFilter || row['ITEM'] === activeItemFilter;
-                
                 return matchPackage && matchItem;
             });
 
-            renderChart(filteredData);
-            renderTable(filteredData);
+            // Group the data cleanly by Region and Quarter
+            const aggregatedData = aggregateData(filteredData, currentTab);
+
+            renderChart(aggregatedData);
+            renderTable(aggregatedData);
         }
 
         function renderChart(dataArray) {
@@ -262,14 +367,13 @@
             
             if (myChart) myChart.destroy();
 
-            // Dynamic Title Updating
             if (activePackageFilter && activeItemFilter) {
                 titleEl.textContent = `${activePackageFilter} - ${activeItemFilter}`;
             } else {
                 titleEl.textContent = 'Market Conditions';
             }
 
-            // ENFORCE 1-ITEM RULE: If no item is specifically selected, hide chart and prompt the user.
+            // ENFORCE 1-ITEM RULE
             if (!activeItemFilter) {
                 chartWrapper.style.display = 'none';
                 if (dataArray && dataArray.length > 0) {
@@ -287,7 +391,7 @@
             }
             
             placeholder.style.display = 'none';
-            chartWrapper.style.display = 'flex'; // Use flex to stack title and chart cleanly
+            chartWrapper.style.display = 'flex'; 
 
             // Extract dynamic UOM and Quarter for the chart title
             let uom = 'UNIT';
@@ -310,7 +414,7 @@
             let titlePrefix = '';
             
             if (currentTab === 'unitPricing') {
-                titlePrefix = `Cost/${uom}`;
+                titlePrefix = `cost/${uom}`;
             } else if (currentTab === 'leadTimes') {
                 titlePrefix = `Lead Time (Weeks)`;
             } else if (currentTab === 'priceEscalation') {
@@ -319,75 +423,33 @@
 
             chartInnerTitle.innerHTML = `<span style="color: #0033a0;">${titlePrefix}</span> <span style="color: #4b5563; text-transform: uppercase;">- ${quarterStr || 'All Time'}</span>`;
 
-            // FUZZY DATA MATCHER with Percentage Handling
-            const getCleanValue = (row, keywords, isPercent = false) => {
-                const keys = Object.keys(row);
-                const targetKey = keys.find(k => {
-                    const upper = k.toUpperCase();
-                    return keywords.every(kw => upper.includes(kw));
-                });
-                
-                if (!targetKey) return 0;
-                
-                const val = row[targetKey];
-                if (val === undefined || val === null || val === '') return 0;
-                
-                // Strip all non-numeric characters (like '$', '%', ',') before parsing
-                let parsed = parseFloat(String(val).replace(/[^0-9.-]+/g, ""));
-                if (isNaN(parsed)) return 0;
-
-                // Fix: Google Sheets translates percentage formatted columns to decimals under the hood (e.g. 5% -> 0.05).
-                // If it is supposed to be a percent, and it looks like a decimal fraction, correct it.
-                if (isPercent && Math.abs(parsed) <= 1 && parsed !== 0 && !String(val).includes('%')) {
-                    parsed = parsed * 100;
-                }
-
-                return parsed;
-            };
-
             const labels = [];
             const lowData = [];
             const highData = [];
             const leadData = [];
             const varData = [];
 
-            // Plot individual submissions (since we are locked to 1 item)
+            // Plot Aggregated Data Points
             dataArray.forEach(row => {
                 const region = row['REGION'] || 'No Region';
                 const quarter = row['QUARTER'] || '';
                 
-                // Label formats dynamically (Company removed from X-axis as requested)
-                labels.push(quarter ? `${region} | ${quarter}` : region);
+                // Chart.js natively accepts an array of strings to display multi-line labels
+                labels.push(quarter ? [region, quarter] : [region]);
                 
                 if (currentTab === 'unitPricing') {
-                    let low = getCleanValue(row, ['LOW', 'RANGE']);
-                    if (low === 0) low = getCleanValue(row, ['SUBMITTED', 'LOW']); 
-                    if (low === 0) low = getCleanValue(row, ['LOW', 'PRICE']); 
-                    
-                    let high = getCleanValue(row, ['HIGH', 'RANGE']);
-                    if (high === 0) high = getCleanValue(row, ['SUBMITTED', 'HIGH']); 
-                    if (high === 0) high = getCleanValue(row, ['HIGH', 'PRICE']); 
-                    
-                    lowData.push(low);
-                    highData.push(high);
+                    lowData.push(row['LOW RANGE']);
+                    highData.push(row['HIGH RANGE']);
                 } else if (currentTab === 'leadTimes') {
-                    let lead = getCleanValue(row, ['LEAD', 'TIME']);
-                    if (lead === 0) lead = getCleanValue(row, ['SUBMITTED', 'LEAD']); 
-                    
-                    leadData.push(lead);
+                    leadData.push(row['LEAD TIME']);
                 } else if (currentTab === 'priceEscalation') {
-                    // Pass true to flag this as a percentage that might need decimal correction
-                    let variance = getCleanValue(row, ['VARIANCE'], true);
-                    if (variance === 0) variance = getCleanValue(row, ['ESCALATION'], true); 
-                    
-                    varData.push(variance);
+                    varData.push(row['PRICE VARIANCE']);
                 }
             });
 
             const datasets = [];
 
             if (currentTab === 'unitPricing') {
-                // Stacked points (scatter/line approach without drawing the connection lines)
                 datasets.push({
                     type: 'line',
                     showLine: false,
@@ -428,7 +490,6 @@
                 });
             }
 
-            // Dynamic formatters for Y-axis and Tooltips based on the active tab
             let yAxisCallback = function(value) { return value; };
             let tooltipCallback = function(context) { return context.dataset.label + ': ' + context.parsed.y; };
 
@@ -453,7 +514,7 @@
 
                     const ctx = chart.ctx;
                     ctx.save();
-                    ctx.strokeStyle = '#d1d5db'; // Light gray
+                    ctx.strokeStyle = '#d1d5db'; 
                     ctx.lineWidth = 3;
 
                     metaLow.data.forEach((point, index) => {
@@ -470,12 +531,12 @@
             };
 
             myChart = new Chart(ctx, {
-                type: 'bar', // Base type, overridden by unitPricing datasets
+                type: 'bar', 
                 data: { labels, datasets },
                 plugins: [ChartDataLabels, stemPlugin],
                 options: {
                     layout: {
-                        padding: { top: 35, bottom: 20 } // Prevents datalabels from clipping off the canvas edges
+                        padding: { top: 35, bottom: 20 } 
                     },
                     responsive: true,
                     maintainAspectRatio: false,
@@ -485,11 +546,11 @@
                             font: { weight: 'bold', size: 11 },
                             formatter: function(value, context) {
                                 if (currentTab === 'unitPricing') return '$' + value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                                if (currentTab === 'priceEscalation') return value + '%';
-                                if (currentTab === 'leadTimes') return value + ' Wks';
+                                if (currentTab === 'priceEscalation') return value.toFixed(2) + '%';
+                                if (currentTab === 'leadTimes') return value.toFixed(1) + ' Wks';
                             }
                         },
-                        legend: { display: false }, // Legend removed as requested
+                        legend: { display: false }, 
                         tooltip: {
                             callbacks: {
                                 label: tooltipCallback
@@ -498,7 +559,7 @@
                     },
                     scales: {
                         x: {
-                            offset: true // Fixes the issue where outer data points hugged the very edge of the chart
+                            offset: true 
                         },
                         y: { 
                             beginAtZero: true,
@@ -523,7 +584,8 @@
             dataArray.forEach(row => Object.keys(row).forEach(k => allKeys.add(k)));
             let headers = Array.from(allKeys);
             
-            const preferredOrder = ['TIMESTAMP', 'COMPANY', 'COMPANY NAME', 'REGION', 'QUARTER', 'BID PACKAGE', 'ITEM', 'UNIT OF MEASURE'];
+            // Reordered without Company Name
+            const preferredOrder = ['REGION', 'QUARTER', 'BID PACKAGE', 'ITEM', 'UNIT OF MEASURE'];
             headers.sort((a, b) => {
                let indexA = preferredOrder.indexOf(a.toUpperCase());
                let indexB = preferredOrder.indexOf(b.toUpperCase());
@@ -537,7 +599,6 @@
             html += `</tr></thead><tbody>`;
             
             dataArray.forEach(row => {
-                // Find the unit of measure for this specific row to append to prices
                 let rowUOM = '';
                 const uomKey = Object.keys(row).find(k => k.toUpperCase().includes('UNIT OF MEASURE') || k.toUpperCase() === 'UOM');
                 if (uomKey && row[uomKey]) {
@@ -550,25 +611,19 @@
                     
                     if (val !== '') {
                         const hUpper = h.toUpperCase();
-                        
-                        // Clean the value of non-numeric characters for calculation, avoiding structural columns
-                        const skipFormatCols = ['TIMESTAMP', 'QUARTER', 'COMPANY', 'REGION', 'BID PACKAGE', 'ITEM', 'UNIT OF MEASURE'];
+                        const skipFormatCols = ['TIMESTAMP', 'QUARTER', 'REGION', 'BID PACKAGE', 'ITEM', 'UNIT OF MEASURE'];
                         
                         if (!skipFormatCols.includes(hUpper)) {
                             let cleanVal = parseFloat(String(val).replace(/[^0-9.-]+/g, ""));
                             
                             if (!isNaN(cleanVal)) {
-                                // Checking for Variance/Escalation FIRST prevents "Price Variance" from formatting as currency
                                 if (hUpper.includes('VARIANCE') || hUpper.includes('ESCALATION')) {
-                                    if (Math.abs(cleanVal) <= 1 && cleanVal !== 0 && !String(val).includes('%')) {
-                                        cleanVal = cleanVal * 100;
-                                    }
                                     val = parseFloat(cleanVal.toFixed(2)) + '%';
                                 } else if (hUpper.includes('PRICE') || hUpper.includes('COST') || hUpper.includes('RANGE')) {
                                     val = '$' + cleanVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                                    if (rowUOM) val += '/' + rowUOM; // Append the UoM suffix
+                                    if (rowUOM) val += '/' + rowUOM;
                                 } else if (hUpper.includes('LEAD') || hUpper.includes('TIME')) {
-                                    val = cleanVal + ' Weeks';
+                                    val = cleanVal.toFixed(1) + ' Weeks';
                                 }
                             }
                         }
