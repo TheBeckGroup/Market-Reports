@@ -381,7 +381,7 @@
             });
 
             const sidebar = document.getElementById('sidebar-menu');
-            let html = ''; // Removed 'View All Packages'
+            let html = ''; 
 
             Array.from(packageMap.keys()).sort().forEach(pkg => {
                 const isPkgActive = activePackageFilter === pkg;
@@ -445,7 +445,6 @@
                 return;
             }
 
-            // Map colors for the vertical accent bars matching the trend chart
             const colors = ['#0033a0', '#4b5563', '#3b82f6']; 
             let uniqueRegions = [...new Set(dataArray.map(r => r['REGION']).filter(r => r))];
             uniqueRegions.sort((a, b) => {
@@ -509,7 +508,6 @@
                 titleEl.textContent = 'Market Conditions';
             }
 
-            // ENFORCE 1-ITEM RULE
             if (!activeItemFilter) {
                 topSection.style.display = 'none';
                 placeholder.style.display = 'block';
@@ -517,7 +515,6 @@
                 return;
             }
 
-            // ENFORCE EMPTY STATE IF NO DATA
             if (!dataArray || dataArray.length === 0) {
                 topSection.style.display = 'none';
                 placeholder.style.display = 'block';
@@ -568,9 +565,7 @@
 
             dataArray.forEach(row => {
                 const region = row['REGION'] || 'No Region';
-                
                 labels.push(region);
-                
                 const rIdx = uniqueRegions.indexOf(region);
                 bgColors.push(colors[rIdx !== -1 ? (rIdx % colors.length) : 0]);
                 
@@ -675,9 +670,7 @@
                 data: { labels, datasets },
                 plugins: [ChartDataLabels, stemPlugin],
                 options: {
-                    layout: {
-                        padding: { top: 35, bottom: 20 } 
-                    },
+                    layout: { padding: { top: 35, bottom: 20 } },
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
@@ -691,27 +684,15 @@
                             }
                         },
                         legend: { display: false }, 
-                        tooltip: {
-                            callbacks: {
-                                label: tooltipCallback
-                            }
-                        }
+                        tooltip: { callbacks: { label: tooltipCallback } }
                     },
                     scales: {
-                        x: {
-                            offset: true 
-                        },
-                        y: { 
-                            beginAtZero: true,
-                            ticks: {
-                                callback: yAxisCallback
-                            }
-                        }
+                        x: { offset: true },
+                        y: { beginAtZero: true, ticks: { callback: yAxisCallback } }
                     }
                 }
             });
 
-            // Call to render the data table matching this snapshot!
             renderTable(dataArray);
         }
 
@@ -757,7 +738,6 @@
                 const dataPoints = quarters.map(q => {
                     const row = dataArray.find(r => r['REGION'] === region && r['QUARTER'] === q);
                     if (!row) return null;
-                    
                     if (currentTab === 'unitPricing') return (row['LOW RANGE'] + row['HIGH RANGE']) / 2; 
                     if (currentTab === 'leadTimes') return row['LEAD TIME'];
                     if (currentTab === 'priceEscalation') return row['PRICE VARIANCE'];
@@ -781,7 +761,6 @@
 
             for (let q = 0; q < quarters.length; q++) {
                 const valMap = {};
-                
                 datasets.forEach((ds, dIndex) => {
                     const val = ds.data[q];
                     if (val !== null && val !== undefined) {
@@ -796,7 +775,6 @@
                     if (val !== null && val !== undefined) {
                         const key = val.toFixed(4);
                         const overlappingIndices = valMap[key];
-                        
                         if (overlappingIndices.length > 1) {
                             const overlappingColors = overlappingIndices.map(idx => datasets[idx].backgroundColor);
                             pointStyles[dIndex].push(getPieCanvas(overlappingColors));
@@ -815,7 +793,6 @@
                 });
             }
 
-            // VISUAL DIGESTIBILITY: Pad the X-axis with empty values so points aren't spread too far
             let padStr = ' ';
             while (quarters.length < 6) {
                 quarters.push(padStr);
@@ -828,11 +805,9 @@
                 });
             }
 
-            // ASSIGN SCRIPTABLE FUNCTIONS TO FIX LEGEND:
-            // This guarantees the legend uses a standard 'circle' while allowing split bubbles on the chart
             datasets.forEach((ds, dIndex) => {
                 ds.pointStyle = (context) => {
-                    if (context.dataIndex === undefined) return 'circle'; // Fallback for the legend
+                    if (context.dataIndex === undefined) return 'circle'; // LEGEND FALLBACK
                     return pointStyles[dIndex][context.dataIndex] || 'circle';
                 };
                 ds.pointRadius = (context) => {
@@ -867,25 +842,17 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
+                    interaction: { mode: 'index', intersect: false },
                     plugins: {
                         legend: { 
                             display: true, 
                             position: 'top',
                             labels: { usePointStyle: true, boxWidth: 8 }
                         },
-                        tooltip: { 
-                            callbacks: { label: tooltipCallback } 
-                        }
+                        tooltip: { callbacks: { label: tooltipCallback } }
                     },
                     scales: {
-                        y: { 
-                            beginAtZero: true,
-                            ticks: { callback: yAxisCallback }
-                        }
+                        y: { beginAtZero: true, ticks: { callback: yAxisCallback } }
                     }
                 }
             });
