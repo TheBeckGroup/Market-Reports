@@ -133,6 +133,7 @@
                         </div>
                         <div class="chart-inner-wrapper">
                             <canvas id="dataChart"></canvas>
+                            <div id="chart-empty-state" style="display: none; align-items: center; justify-content: center; flex-direction: column; height: 100%; color: #6b7280; text-align: center; border: 1px dashed #d1d5db; border-radius: 8px; background: #f9fafb; box-sizing: border-box; padding: 20px;"></div>
                         </div>
                     </div>
                     
@@ -515,13 +516,17 @@
         function renderChart(dataArray, selectedQuarter) {
             const topSection = document.getElementById('top-section');
             const placeholder = document.getElementById('chart-placeholder');
-            const ctx = document.getElementById('dataChart').getContext('2d');
+            const chartCanvas = document.getElementById('dataChart');
+            const emptyState = document.getElementById('chart-empty-state');
+            const ctx = chartCanvas.getContext('2d');
             const titleEl = document.getElementById('dashboard-title');
             
             if (myChart) myChart.destroy();
 
             if (activePackageFilter && activeItemFilter) {
                 titleEl.textContent = `${activePackageFilter} - ${activeItemFilter}`;
+            } else if (activePackageFilter) {
+                titleEl.textContent = activePackageFilter;
             } else {
                 titleEl.textContent = 'Bid Packages';
             }
@@ -533,21 +538,22 @@
                 return;
             }
 
-            if (!dataArray || dataArray.length === 0) {
-                topSection.style.display = 'none';
-                placeholder.style.display = 'block';
-                placeholder.innerHTML = `<span style="font-size: 24px; display: block; margin-bottom: 10px;">📉</span><strong>No Data Available</strong><br>There are no submissions for this item in ${selectedQuarter || 'the selected quarter'}.`;
-                return;
-            }
-            
             placeholder.style.display = 'none';
             topSection.style.display = 'flex'; 
 
+            // Robustly extract the UOM even if the current quarter has no data
             let uom = 'UNIT';
-            if (dataArray.length > 0) {
+            if (dataArray && dataArray.length > 0) {
                 const firstRowKeys = Object.keys(dataArray[0]);
                 const uomKey = firstRowKeys.find(k => k.toUpperCase().includes('UNIT OF MEASURE') || k.toUpperCase() === 'UOM');
                 if (uomKey && dataArray[0][uomKey]) uom = dataArray[0][uomKey];
+            } else if (rawData[currentTab]) {
+                const allItems = rawData[currentTab].filter(row => row['ITEM'] === activeItemFilter);
+                if (allItems.length > 0) {
+                    const firstRowKeys = Object.keys(allItems[0]);
+                    const uomKey = firstRowKeys.find(k => k.toUpperCase().includes('UNIT OF MEASURE') || k.toUpperCase() === 'UOM');
+                    if (uomKey && allItems[0][uomKey]) uom = allItems[0][uomKey];
+                }
             }
 
             const chartInnerTitle = document.getElementById('chart-inner-title');
@@ -562,6 +568,17 @@
             }
 
             chartInnerTitle.innerHTML = `<span style="color: #0033a0;">${titlePrefix}</span>`;
+
+            if (!dataArray || dataArray.length === 0) {
+                chartCanvas.style.display = 'none';
+                emptyState.style.display = 'flex';
+                emptyState.innerHTML = `<span style="font-size: 24px; display: block; margin-bottom: 10px;">📉</span><strong>No Data Available</strong><br>There are no submissions for this item in ${selectedQuarter || 'the selected quarter'}.`;
+                renderTable(dataArray);
+                return;
+            }
+            
+            chartCanvas.style.display = 'block';
+            emptyState.style.display = 'none';
 
             const labels = [];
             const lowData = [];
