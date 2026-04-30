@@ -88,23 +88,15 @@
             <div class="form-group" style="display: flex; gap: 20px; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 250px;">
                     <label>Subcontractor Company Name *</label>
-                    <input type="text" name="companyName" placeholder="Enter company name" required>
+                    <input type="text" name="companyName" required>
                 </div>
                 <div style="flex: 1; min-width: 200px;">
                     <label>Region *</label>
                     <select name="region" required>
                         <option value="" disabled selected>-- Select Region --</option>
                         <option value="Tampa/West Florida">Tampa/West Florida</option>
-                        <option value="South Florida">South Florida</option>
-                        <option value="Central Florida">Central Florida</option>
-                        <option value="North Florida">North Florida</option>
-                        <option value="Atlanta">Atlanta</option>
-                        <option value="Dallas">Dallas</option>
-                        <option value="Fort Worth">Fort Worth</option>
-                        <option value="Austin">Austin</option>
-                        <option value="Houston">Houston</option>
-                        <option value="Denver">Denver</option>
-                        <option value="Monterrey">Monterrey</option>
+                        <option value="Miami/Ft. Lauderdale">Miami/Ft. Lauderdale</option>
+                        <option value="Orlando/Central Florida">Orlando/Central Florida</option>
                     </select>
                 </div>
             </div>
@@ -165,11 +157,11 @@
                         <div class="input-area double">
                             <div class="input-group">
                                 <span class="input-group-addon prefix">$</span>
-                                <input type="number" step="0.01" name="unitPriceLow_${i}" placeholder="Low">
+                                <input type="number" step="0.01" name="unitPriceLow_${i}">
                             </div>
                             <div class="input-group">
                                 <span class="input-group-addon prefix">$</span>
-                                <input type="number" step="0.01" name="unitPriceHigh_${i}" placeholder="High">
+                                <input type="number" step="0.01" name="unitPriceHigh_${i}">
                                 <span class="input-group-addon suffix">/ ${row['UNIT OF MEASURE'] || 'UNIT'}</span>
                             </div>
                             <input type="hidden" name="unitItem_${i}" value="${row['ITEM']}">
@@ -197,7 +189,7 @@
                         </div>
                         <div class="input-area">
                             <div class="input-group">
-                                <input type="number" name="leadTime_${i}" placeholder="Enter weeks">
+                                <input type="number" name="leadTime_${i}">
                                 <span class="input-group-addon suffix">weeks</span>
                             </div>
                             <input type="hidden" name="leadItem_${i}" value="${row['ITEM']}">
@@ -225,7 +217,7 @@
                         </div>
                         <div class="input-area">
                             <div class="input-group">
-                                <input type="number" step="0.01" name="escalation_${i}" placeholder="Enter %">
+                                <input type="number" step="0.01" name="escalation_${i}">
                                 <span class="input-group-addon suffix">%</span>
                             </div>
                             <input type="hidden" name="escalationItem_${i}" value="${row['ITEM']}">
@@ -258,11 +250,11 @@
                     <div class="input-area double">
                         <div class="input-group">
                             <span class="input-group-addon prefix">$</span>
-                            <input type="number" step="0.01" name="customUnitPriceLow_${count}" placeholder="Low">
+                            <input type="number" step="0.01" name="customUnitPriceLow_${count}">
                         </div>
                         <div class="input-group">
                             <span class="input-group-addon prefix">$</span>
-                            <input type="number" step="0.01" name="customUnitPriceHigh_${count}" placeholder="High">
+                            <input type="number" step="0.01" name="customUnitPriceHigh_${count}">
                         </div>
                     </div>
                 </div>`;
@@ -275,7 +267,7 @@
                     </div>
                     <div class="input-area">
                         <div class="input-group">
-                            <input type="number" name="customLeadTime_${count}" placeholder="Weeks">
+                            <input type="number" name="customLeadTime_${count}">
                             <span class="input-group-addon suffix">weeks</span>
                         </div>
                     </div>
@@ -289,7 +281,7 @@
                     </div>
                     <div class="input-area">
                         <div class="input-group">
-                            <input type="number" step="0.01" name="customEscalation_${count}" placeholder="%">
+                            <input type="number" step="0.01" name="customEscalation_${count}">
                             <span class="input-group-addon suffix">%</span>
                         </div>
                     </div>
