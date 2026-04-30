@@ -9,18 +9,24 @@
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; padding: 40px 20px; background-color: #f3f4f6; color: #4b5563; }
         .container { background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; position: relative; }
+        
+        .btn-back { display: inline-flex; align-items: center; color: #6b7280; text-decoration: none; font-size: 14px; font-weight: 600; margin-bottom: 15px; transition: color 0.2s; }
+        .btn-back:hover { color: #0033a0; }
+
         .header-bar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 2px solid #e5e7eb; padding-bottom: 15px; }
         .header-bar h2 { margin: 0; color: #0033a0; font-size: 24px; }
         .header-bar img { height: 50px; width: auto; object-fit: contain; }
         
-        h3 { color: #0033a0; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-top: 30px; }
+        .section-container { margin-bottom: 40px; }
+        .section-container h3 { color: #0033a0; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 15px; }
+        
         .form-group { margin-bottom: 20px; }
         .form-group.flex-row { display: flex; align-items: center; gap: 20px; border-bottom: 1px solid #f3f4f6; padding-bottom: 15px; position: relative; }
         .form-group.flex-row:last-child { border-bottom: none; }
         
         .details { flex: 1; min-width: 0; }
-        .input-area { flex: 1; min-width: 0; }
-        .input-area.double { flex: 2; }
+        .input-area { flex: none; width: 160px; }
+        .input-area.double { flex: none; width: 320px; display: flex; gap: 10px; }
         
         label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 14px; }
         input, select { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
@@ -36,7 +42,7 @@
             -moz-appearance: textfield;
         }
 
-        .input-group { display: flex; align-items: center; background: #fff; border: 1px solid #d1d5db; border-radius: 4px; overflow: hidden; margin-top: 5px; }
+        .input-group { display: flex; align-items: center; background: #fff; border: 1px solid #d1d5db; border-radius: 4px; overflow: hidden; margin-top: 5px; width: 100%; }
         .input-group-addon { background: #f3f4f6; padding: 10px 12px; color: #6b7280; font-size: 13px; font-weight: bold; white-space: nowrap; }
         .input-group-addon.prefix { border-right: 1px solid #d1d5db; }
         .input-group-addon.suffix { border-left: 1px solid #d1d5db; }
@@ -45,19 +51,20 @@
         button { background-color: #0033a0; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; font-weight: bold; }
         button:hover { background-color: #002270; }
         
-        .btn-add { background-color: #f3f4f6; color: #0033a0; border: 1px dashed #0033a0; padding: 8px 16px; font-size: 13px; margin-top: 10px; }
+        .btn-add { background-color: #f3f4f6; color: #0033a0; border: 1px dashed #0033a0; padding: 8px 16px; font-size: 13px; margin-top: 5px; }
         .btn-add:hover { background-color: #e5e7eb; }
 
         .btn-delete { background: none; border: none; color: #ef4444; font-size: 18px; cursor: pointer; padding: 0 5px; position: absolute; right: -30px; top: 50%; transform: translateY(-50%); transition: transform 0.2s; line-height: 1; }
         .btn-delete:hover { transform: translateY(-50%) scale(1.2); }
         
         .loading { font-style: italic; color: #6b7280; padding: 20px; text-align: center; }
-        #submit-btn { margin-top: 40px; width: 100%; font-size: 18px; padding: 15px; }
+        #submit-btn { margin-top: 20px; width: 100%; font-size: 18px; padding: 15px; }
 
         .custom-item-row { background: #f9fafb; padding: 15px; border-radius: 6px; margin-bottom: 10px; }
 
         @media (max-width: 600px) {
             .form-group.flex-row { flex-direction: column; align-items: stretch; gap: 10px; }
+            .input-area, .input-area.double { width: 100%; }
             .btn-delete { right: 0; top: 10px; transform: none; }
             .btn-delete:hover { transform: scale(1.2); }
         }
@@ -65,6 +72,7 @@
 </head>
 <body>
     <div class="container">
+        <a href="index.html" class="btn-back">← Back to Selection</a>
         <div class="header-bar">
             <div style="flex:1">
                 <h2>Market Condition Pricing</h2>
@@ -102,19 +110,13 @@
             </div>
 
             <div id="form-content" class="loading">Loading bid package items...</div>
-            
-            <h3>Additional Items (Optional)</h3>
-            <p style="font-size: 13px; margin-bottom: 15px;">Include any specific items or custom scopes not listed above.</p>
-            <div id="custom-unit-items"></div>
-            <button type="button" class="btn-add" onclick="addCustomUnitItem()">+ Add Custom Item</button>
-
             <div id="submit-container"></div>
         </form>
     </div>
 
     <script>
         const GAS_DB_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxmdnYzBC-mfx1IpGiDUdpAfELNVnJL0oZ5cYKkbxoB_z-IlRBVBLcNyPlAJXTBjJXX/exec';
-        let customItemCount = 0;
+        let customCounts = { unit: 0, lead: 0, escalation: 0 };
 
         document.addEventListener("DOMContentLoaded", async () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -149,6 +151,7 @@
             let html = "";
 
             // SECTION 1: UNIT PRICING
+            html += `<div class="section-container">`;
             html += `<h3>Current Unit Pricing</h3>`;
             if (data.unitPricing.items.length === 0) {
                 html += `<p>No unit pricing items found for this package.</p>`;
@@ -159,7 +162,7 @@
                         <div class="details">
                             <label><strong>${row['ITEM']}</strong></label>
                         </div>
-                        <div class="input-area double" style="display: flex; gap: 10px;">
+                        <div class="input-area double">
                             <div class="input-group">
                                 <span class="input-group-addon prefix">$</span>
                                 <input type="number" step="0.01" name="unitPriceLow_${i}" placeholder="Low">
@@ -176,8 +179,12 @@
                     </div>`;
                 });
             }
+            html += `<div id="custom-unit-items"></div>`;
+            html += `<button type="button" class="btn-add" onclick="addCustomItem('unit')">+ Add Custom Item</button>`;
+            html += `</div>`;
 
             // SECTION 2: LEAD TIMES
+            html += `<div class="section-container">`;
             html += `<h3>Material Lead Times</h3>`;
             if (data.leadTimes.items.length === 0) {
                 html += `<p>No lead time items found.</p>`;
@@ -199,8 +206,12 @@
                     </div>`;
                 });
             }
+            html += `<div id="custom-lead-items"></div>`;
+            html += `<button type="button" class="btn-add" onclick="addCustomItem('lead')">+ Add Custom Item</button>`;
+            html += `</div>`;
 
             // SECTION 3: PRICE ESCALATION
+            html += `<div class="section-container">`;
             html += `<h3>Projected Price Variance</h3>`;
             html += `<p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">Projected percentage variance for next quarter.</p>`;
             if (data.priceEscalation.items.length === 0) {
@@ -223,33 +234,68 @@
                     </div>`;
                 });
             }
+            html += `<div id="custom-escalation-items"></div>`;
+            html += `<button type="button" class="btn-add" onclick="addCustomItem('escalation')">+ Add Custom Item</button>`;
+            html += `</div>`;
 
             container.innerHTML = html;
             document.getElementById('submit-container').innerHTML = `<button type="submit" id="submit-btn">Submit Pricing</button>`;
         }
 
-        function addCustomUnitItem() {
-            const container = document.getElementById('custom-unit-items');
-            const html = `
-            <div class="form-group flex-row custom-item-row" id="custom-item-${customItemCount}" style="border-left: 3px solid #0033a0;">
-                <button type="button" class="btn-delete" onclick="this.closest('.custom-item-row').remove()">✖</button>
-                <div class="details" style="display: flex; gap: 10px; margin-top: 5px;">
-                    <input type="text" name="customItemName_${customItemCount}" placeholder="Custom Item Description" style="flex: 2;">
-                    <input type="text" name="customItemUOM_${customItemCount}" placeholder="UOM (e.g. LS, SF)" style="flex: 1;">
-                </div>
-                <div class="input-area double" style="display: flex; gap: 10px;">
-                    <div class="input-group">
-                        <span class="input-group-addon prefix">$</span>
-                        <input type="number" step="0.01" name="customUnitPriceLow_${customItemCount}" placeholder="Low">
+        function addCustomItem(type) {
+            const container = document.getElementById(`custom-${type}-items`);
+            let html = '';
+            let count = customCounts[type]++;
+            
+            if (type === 'unit') {
+                html = `
+                <div class="form-group flex-row custom-item-row" style="border-left: 3px solid #0033a0;">
+                    <button type="button" class="btn-delete" onclick="this.closest('.custom-item-row').remove()">✖</button>
+                    <div class="details" style="display: flex; gap: 10px; margin-top: 5px;">
+                        <input type="text" name="customUnitName_${count}" placeholder="Custom Item Description" style="flex: 2;">
+                        <input type="text" name="customUnitUOM_${count}" placeholder="UOM (e.g. LS, SF)" style="flex: 1;">
                     </div>
-                    <div class="input-group">
-                        <span class="input-group-addon prefix">$</span>
-                        <input type="number" step="0.01" name="customUnitPriceHigh_${customItemCount}" placeholder="High">
+                    <div class="input-area double">
+                        <div class="input-group">
+                            <span class="input-group-addon prefix">$</span>
+                            <input type="number" step="0.01" name="customUnitPriceLow_${count}" placeholder="Low">
+                        </div>
+                        <div class="input-group">
+                            <span class="input-group-addon prefix">$</span>
+                            <input type="number" step="0.01" name="customUnitPriceHigh_${count}" placeholder="High">
+                        </div>
                     </div>
-                </div>
-            </div>`;
+                </div>`;
+            } else if (type === 'lead') {
+                html = `
+                <div class="form-group flex-row custom-item-row" style="border-left: 3px solid #0033a0;">
+                    <button type="button" class="btn-delete" onclick="this.closest('.custom-item-row').remove()">✖</button>
+                    <div class="details" style="margin-top: 5px;">
+                        <input type="text" name="customLeadName_${count}" placeholder="Custom Lead Time Description">
+                    </div>
+                    <div class="input-area">
+                        <div class="input-group">
+                            <input type="number" name="customLeadTime_${count}" placeholder="Weeks">
+                            <span class="input-group-addon suffix">weeks</span>
+                        </div>
+                    </div>
+                </div>`;
+            } else if (type === 'escalation') {
+                html = `
+                <div class="form-group flex-row custom-item-row" style="border-left: 3px solid #0033a0;">
+                    <button type="button" class="btn-delete" onclick="this.closest('.custom-item-row').remove()">✖</button>
+                    <div class="details" style="margin-top: 5px;">
+                        <input type="text" name="customEscalationName_${count}" placeholder="Custom Escalation Description">
+                    </div>
+                    <div class="input-area">
+                        <div class="input-group">
+                            <input type="number" step="0.01" name="customEscalation_${count}" placeholder="%">
+                            <span class="input-group-addon suffix">%</span>
+                        </div>
+                    </div>
+                </div>`;
+            }
             container.insertAdjacentHTML('beforeend', html);
-            customItemCount++;
         }
 
         function getCurrentQuarter() {
@@ -282,6 +328,7 @@
             for (let [key, value] of formData.entries()) {
                 if (!value) continue;
 
+                // Existing Items
                 if (key.startsWith('unitPriceLow_')) {
                     const idx = key.split('_')[1];
                     data.unitPricing.push({
@@ -306,15 +353,31 @@
                         'ITEM': formData.get(`escalationItem_${idx}`),
                         'SUBMITTED VARIANCE': value
                     });
-                } else if (key.startsWith('customItemName_')) {
+                } 
+                // Custom Items dynamically pushed to their respective sections
+                else if (key.startsWith('customUnitName_')) {
                     const idx = key.split('_')[1];
                     data.unitPricing.push({
                         'BID PACKAGE': data.bidPackage,
                         'ITEM': value + " (Custom)",
-                        'UNIT OF MEASURE': formData.get(`customItemUOM_${idx}`) || "LS",
+                        'UNIT OF MEASURE': formData.get(`customUnitUOM_${idx}`) || "LS",
                         'LOW RANGE': formData.get(`customUnitPriceLow_${idx}`),
-                        'HIGH RANGE': formData.get(`customUnitPriceHigh_${idx}`),
+                        'HIGH RANGE': formData.get(`customUnitPriceHigh_${idx}`) || formData.get(`customUnitPriceLow_${idx}`),
                         'SUBMITTED PRICE': formData.get(`customUnitPriceLow_${idx}`)
+                    });
+                } else if (key.startsWith('customLeadName_')) {
+                    const idx = key.split('_')[1];
+                    data.leadTimes.push({
+                        'BID PACKAGE': data.bidPackage,
+                        'ITEM': value + " (Custom)",
+                        'SUBMITTED LEAD TIME': formData.get(`customLeadTime_${idx}`)
+                    });
+                } else if (key.startsWith('customEscalationName_')) {
+                    const idx = key.split('_')[1];
+                    data.priceEscalation.push({
+                        'BID PACKAGE': data.bidPackage,
+                        'ITEM': value + " (Custom)",
+                        'SUBMITTED VARIANCE': formData.get(`customEscalation_${idx}`)
                     });
                 }
             }
@@ -332,7 +395,8 @@
                     <img src="becklogo.png" alt="Beck Logo" style="height: 60px; margin-bottom: 20px;">
                     <h2 style="color: #0033a0;">Submission Successful</h2>
                     <p>Thank you for submitting your market pricing for <strong>${data.bidPackage}</strong>.</p>
-                    <p style="color: #6b7280;">You can now close this window.</p>
+                    <p style="color: #6b7280;">You can now close this window or return to the landing page to select another package.</p>
+                    <a href="index.html" style="display: inline-block; margin-top: 20px; background-color: #0033a0; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Return to Selection</a>
                 </div>`;
             } catch (error) {
                 console.error('Submission error:', error);
