@@ -147,6 +147,12 @@
                         <canvas id="trendChart"></canvas>
                     </div>
                 </div>
+                
+                <!-- Permanent Market Sentiment Section -->
+                <div class="sentiment-section" id="sentiment-section" style="display: none; margin-bottom: 20px;">
+                    <h3 style="color: #0033a0; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px;">Market Sentiment Quotes</h3>
+                    <div id="sentiment-container" style="display: flex; flex-direction: column; gap: 15px;"></div>
+                </div>
 
             </div>
         </div>
@@ -156,7 +162,7 @@
         // === IMPORTANT: PASTE YOUR GOOGLE APPS SCRIPT DATABASE WEB APP URL HERE ===
         const GAS_DB_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxmdnYzBC-mfx1IpGiDUdpAfELNVnJL0oZ5cYKkbxoB_z-IlRBVBLcNyPlAJXTBjJXX/exec'; 
 
-        let rawData = { unitPricing: [], leadTimes: [], priceEscalation: [] };
+        let rawData = { unitPricing: [], leadTimes: [], priceEscalation: [], marketSentiment: [] };
         let currentTab = 'unitPricing';
         let myChart = null; 
         let myTrendChart = null; 
@@ -340,9 +346,11 @@
             const quarters = new Set();
 
             ['unitPricing', 'leadTimes', 'priceEscalation'].forEach(tab => {
-                rawData[tab].forEach(row => {
-                    if (row['QUARTER']) quarters.add(row['QUARTER']);
-                });
+                if (rawData[tab]) {
+                    rawData[tab].forEach(row => {
+                        if (row['QUARTER']) quarters.add(row['QUARTER']);
+                    });
+                }
             });
 
             const quarterSelect = document.getElementById('filter-quarter');
@@ -370,14 +378,16 @@
             const packageMap = new Map();
 
             ['unitPricing', 'leadTimes', 'priceEscalation'].forEach(tab => {
-                rawData[tab].forEach(row => {
-                    const pkg = row['BID PACKAGE'];
-                    const item = row['ITEM'];
-                    if (pkg) {
-                        if (!packageMap.has(pkg)) packageMap.set(pkg, new Set());
-                        if (item) packageMap.get(pkg).add(item);
-                    }
-                });
+                if (rawData[tab]) {
+                    rawData[tab].forEach(row => {
+                        const pkg = row['BID PACKAGE'];
+                        const item = row['ITEM'];
+                        if (pkg) {
+                            if (!packageMap.has(pkg)) packageMap.set(pkg, new Set());
+                            if (item) packageMap.get(pkg).add(item);
+                        }
+                    });
+                }
             });
 
             const sidebar = document.getElementById('sidebar-menu');
@@ -423,7 +433,7 @@
 
         function applyFilters() {
             const quarterFilter = document.getElementById('filter-quarter') ? document.getElementById('filter-quarter').value : '';
-            const currentData = rawData[currentTab];
+            const currentData = rawData[currentTab] || [];
             
             const baseFilteredData = currentData.filter(row => {
                 const matchPackage = !activePackageFilter || row['BID PACKAGE'] === activePackageFilter;
@@ -436,6 +446,9 @@
 
             renderChart(snapshotData, quarterFilter);
             renderTrendChart(aggregatedData);
+            
+            // Render permanent sentiment section
+            renderSentiment(quarterFilter);
         }
 
         function renderTable(dataArray) {
@@ -488,7 +501,7 @@
                     let variance = '-';
                     if (val !== undefined) {
                         let sign = val > 0 ? '+' : '';
-                        variance = sign + val.toFixed(2) + '%';
+                        variance = sign + val.toFixed(1) + '%';
                     }
                     html += `<td>${variance}</td>`;
                 }
@@ -645,7 +658,7 @@
                 tooltipCallback = function(context) { 
                     let val = context.parsed.y;
                     let sign = val > 0 ? '+' : '';
-                    return context.dataset.label + ': ' + sign + val.toFixed(2) + '%'; 
+                    return context.dataset.label + ': ' + sign + val.toFixed(1) + '%'; 
                 };
             } else if (currentTab === 'leadTimes') {
                 tooltipCallback = function(context) { return context.dataset.label + ': ' + Math.round(context.parsed.y) + ' Weeks'; };
@@ -693,7 +706,7 @@
                                 if (currentTab === 'unitPricing') return '$' + value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                                 if (currentTab === 'priceEscalation') {
                                     let sign = value > 0 ? '+' : '';
-                                    return sign + value.toFixed(2) + '%';
+                                    return sign + value.toFixed(1) + '%';
                                 }
                                 if (currentTab === 'leadTimes') return Math.round(value) + ' Wks'; 
                             }
@@ -826,7 +839,7 @@
 
             datasets.forEach((ds, dIndex) => {
                 ds.pointStyle = (context) => {
-                    if (context.dataIndex === undefined) return 'circle'; // LEGEND FALLBACK
+                    if (context.dataIndex === undefined) return 'circle'; 
                     return pointStyles[dIndex][context.dataIndex] || 'circle';
                 };
                 ds.pointRadius = (context) => {
@@ -845,7 +858,7 @@
                 if (currentTab === 'unitPricing') return context.dataset.label + ' Avg: $' + val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 if (currentTab === 'priceEscalation') {
                     let sign = val > 0 ? '+' : '';
-                    return context.dataset.label + ': ' + sign + val.toFixed(2) + '%';
+                    return context.dataset.label + ': ' + sign + val.toFixed(1) + '%';
                 }
                 if (currentTab === 'leadTimes') return context.dataset.label + ': ' + Math.round(val) + ' Weeks';
                 return val;
@@ -875,7 +888,8 @@
                             labels: { 
                                 usePointStyle: true, 
                                 boxWidth: 8,
-                                pointStyle: 'circle' // Forces a solid circle globally in the legend
+                                pointStyle: 'circle',
+                                padding: 25 // Spaces out the legend to make it less cramped!
                             }
                         },
                         tooltip: { callbacks: { label: tooltipCallback } }
@@ -890,6 +904,80 @@
                 }
             });
         }
+        
+        function renderSentiment(quarterFilter) {
+            const container = document.getElementById('sentiment-container');
+            const section = document.getElementById('sentiment-section');
+            
+            // Hide section if no item is actively selected
+            if (!activeItemFilter) {
+                section.style.display = 'none';
+                return;
+            }
+
+            // Extract relevant sentiment data
+            const sentimentData = (rawData.marketSentiment || []).filter(row => {
+                const matchPackage = row['BID PACKAGE'] === activePackageFilter;
+                const matchItem = row['ITEM'] === activeItemFilter;
+                const matchQuarter = !quarterFilter || row['QUARTER'] === quarterFilter;
+                return matchPackage && matchItem && matchQuarter;
+            });
+
+            // Display fallback message if no quotes exist for this selection
+            if (sentimentData.length === 0) {
+                section.style.display = 'block';
+                container.innerHTML = `<div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 20px; text-align: center; color: #6b7280; font-style: italic;">No market sentiment quotes for this period.</div>`;
+                return;
+            }
+
+            section.style.display = 'block';
+            let html = '';
+
+            // Group Quotes by Region
+            const grouped = {};
+            sentimentData.forEach(row => {
+                const reg = row['REGION'] || 'Unspecified Region';
+                if (!grouped[reg]) grouped[reg] = [];
+                grouped[reg].push(row);
+            });
+
+            // Map and sort matching chart colors
+            const colors = ['#0033a0', '#4b5563', '#3b82f6']; 
+            let uniqueRegions = Object.keys(grouped).sort((a, b) => {
+                const isTampaA = a.toUpperCase().includes('TAMPA') || a.toUpperCase().includes('WEST FLORIDA');
+                const isTampaB = b.toUpperCase().includes('TAMPA') || b.toUpperCase().includes('WEST FLORIDA');
+                if (isTampaA && !isTampaB) return -1;
+                if (!isTampaA && isTampaB) return 1;
+                return a.localeCompare(b);
+            });
+
+            // Render Quote Blocks
+            uniqueRegions.forEach((reg, idx) => {
+                const rColor = colors[idx % colors.length];
+                
+                html += `
+                <div style="background: #fff; border: 1px solid #e5e7eb; border-left: 4px solid ${rColor}; border-radius: 6px; padding: 15px; margin-bottom: 5px;">
+                    <h4 style="margin: 0 0 12px 0; color: #4b5563; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">${reg}</h4>
+                `;
+                
+                grouped[reg].forEach((quote, qIdx) => {
+                    const isLast = qIdx === grouped[reg].length - 1;
+                    const borderStyle = isLast ? '' : 'border-bottom: 1px solid #f3f4f6; padding-bottom: 12px; margin-bottom: 12px;';
+                    const company = quote['COMPANY'] || quote['COMPANY NAME'] || 'Anonymous Subcontractor';
+                    
+                    html += `
+                    <div style="${borderStyle}">
+                        <p style="margin: 0 0 6px 0; font-size: 14px; color: #111827; line-height: 1.5;">"${quote['RESPONSE']}"</p>
+                        <span style="font-size: 12px; color: #6b7280; font-weight: 600;">— ${company}</span>
+                    </div>`;
+                });
+                
+                html += `</div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
     </script>
 </body>
 </html>
