@@ -889,7 +889,7 @@
                                 usePointStyle: true, 
                                 boxWidth: 8,
                                 pointStyle: 'circle',
-                                padding: 25 // Spaces out the legend to make it less cramped!
+                                padding: 25 
                             }
                         },
                         tooltip: { callbacks: { label: tooltipCallback } }
@@ -909,18 +909,17 @@
             const container = document.getElementById('sentiment-container');
             const section = document.getElementById('sentiment-section');
             
-            // Hide section if no item is actively selected
-            if (!activeItemFilter) {
+            // Hide section if no PACKAGE is actively selected (ignores item filter)
+            if (!activePackageFilter) {
                 section.style.display = 'none';
                 return;
             }
 
-            // Extract relevant sentiment data
+            // Extract relevant sentiment data (Filter ONLY by Package and Quarter)
             const sentimentData = (rawData.marketSentiment || []).filter(row => {
                 const matchPackage = row['BID PACKAGE'] === activePackageFilter;
-                const matchItem = row['ITEM'] === activeItemFilter;
                 const matchQuarter = !quarterFilter || row['QUARTER'] === quarterFilter;
-                return matchPackage && matchItem && matchQuarter;
+                return matchPackage && matchQuarter;
             });
 
             // Display fallback message if no quotes exist for this selection
@@ -964,9 +963,11 @@
                     const isLast = qIdx === grouped[reg].length - 1;
                     const borderStyle = isLast ? '' : 'border-bottom: 1px solid #f3f4f6; padding-bottom: 12px; margin-bottom: 12px;';
                     const company = quote['COMPANY'] || quote['COMPANY NAME'] || 'Anonymous Subcontractor';
+                    const topic = quote['ITEM'] || 'General Comment';
                     
                     html += `
                     <div style="${borderStyle}">
+                        <div style="font-size: 11px; font-weight: bold; color: #9ca3af; text-transform: uppercase; margin-bottom: 4px;">Q: ${topic}</div>
                         <p style="margin: 0 0 6px 0; font-size: 14px; color: #111827; line-height: 1.5;">"${quote['RESPONSE']}"</p>
                         <span style="font-size: 12px; color: #6b7280; font-weight: 600;">— ${company}</span>
                     </div>`;
