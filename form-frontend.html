@@ -108,7 +108,7 @@
 
     <script>
         const GAS_DB_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxmdnYzBC-mfx1IpGiDUdpAfELNVnJL0oZ5cYKkbxoB_z-IlRBVBLcNyPlAJXTBjJXX/exec';
-        let customCounts = { unit: 0, lead: 0, escalation: 0 };
+        let customCounts = { unit: 0, lead: 0, escalation: 0, sentiment: 0 };
 
         document.addEventListener("DOMContentLoaded", async () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -230,6 +230,31 @@
             html += `<button type="button" class="btn-add" onclick="addCustomItem('escalation')">+ Add Custom Item</button>`;
             html += `</div>`;
 
+            // SECTION 4: MARKET SENTIMENT
+            html += `<div class="section-container">`;
+            html += `<h3>Market Sentiment</h3>`;
+            html += `<p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">Please share your thoughts on market conditions, supply chain issues, or general sentiment.</p>`;
+            if (!data.marketSentiment || data.marketSentiment.items.length === 0) {
+                html += `<p>No sentiment topics listed.</p>`;
+            } else {
+                data.marketSentiment.items.forEach((row, i) => {
+                    html += `
+                    <div class="form-group flex-row">
+                        <div class="details">
+                            <label><strong>${row['ITEM']}</strong></label>
+                        </div>
+                        <div class="input-area" style="width: 100%; flex: 2;">
+                            <textarea name="sentiment_${i}" placeholder="Enter comments here..." style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; resize: vertical; min-height: 60px; font-family: inherit; font-size: 14px; outline: none;"></textarea>
+                            <input type="hidden" name="sentimentItem_${i}" value="${row['ITEM']}">
+                            <input type="hidden" name="sentimentPackage_${i}" value="${row['BID PACKAGE']}">
+                        </div>
+                    </div>`;
+                });
+            }
+            html += `<div id="custom-sentiment-items"></div>`;
+            html += `<button type="button" class="btn-add" onclick="addCustomItem('sentiment')">+ Add Custom Quote/Comment</button>`;
+            html += `</div>`;
+
             container.innerHTML = html;
             document.getElementById('submit-container').innerHTML = `<button type="submit" id="submit-btn">Submit Pricing</button>`;
         }
@@ -286,6 +311,17 @@
                         </div>
                     </div>
                 </div>`;
+            } else if (type === 'sentiment') {
+                html = `
+                <div class="form-group flex-row custom-item-row" style="border-left: 3px solid #0033a0;">
+                    <button type="button" class="btn-delete" onclick="this.closest('.custom-item-row').remove()">✖</button>
+                    <div class="details" style="margin-top: 5px;">
+                        <input type="text" name="customSentimentName_${count}" placeholder="Custom Topic/Question">
+                    </div>
+                    <div class="input-area" style="width: 100%; flex: 2;">
+                        <textarea name="customSentiment_${count}" placeholder="Enter comments here..." style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; resize: vertical; min-height: 60px; font-family: inherit; font-size: 14px; outline: none;"></textarea>
+                    </div>
+                </div>`;
             }
             container.insertAdjacentHTML('beforeend', html);
         }
@@ -313,7 +349,8 @@
                 bidPackage: formData.get('bidPackage'),
                 unitPricing: [],
                 leadTimes: [],
-                priceEscalation: []
+                priceEscalation: [],
+                marketSentiment: []
             };
 
             // Parse Form Data into JSON structure
@@ -345,7 +382,14 @@
                         'ITEM': formData.get(`escalationItem_${idx}`),
                         'SUBMITTED VARIANCE': value
                     });
-                } 
+                } else if (key.startsWith('sentiment_')) {
+                    const idx = key.split('_')[1];
+                    data.marketSentiment.push({
+                        'BID PACKAGE': formData.get(`sentimentPackage_${idx}`),
+                        'ITEM': formData.get(`sentimentItem_${idx}`),
+                        'RESPONSE': value
+                    });
+                }
                 // Custom Items dynamically pushed to their respective sections
                 else if (key.startsWith('customUnitName_')) {
                     const idx = key.split('_')[1];
@@ -370,6 +414,13 @@
                         'BID PACKAGE': data.bidPackage,
                         'ITEM': value + " (Custom)",
                         'SUBMITTED VARIANCE': formData.get(`customEscalation_${idx}`)
+                    });
+                } else if (key.startsWith('customSentimentName_')) {
+                    const idx = key.split('_')[1];
+                    data.marketSentiment.push({
+                        'BID PACKAGE': data.bidPackage,
+                        'ITEM': value + " (Custom)",
+                        'RESPONSE': formData.get(`customSentiment_${idx}`)
                     });
                 }
             }
