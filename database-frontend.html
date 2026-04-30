@@ -484,7 +484,12 @@
                     let lead = row['LEAD TIME'] !== undefined ? Math.round(row['LEAD TIME']) + ' Wks' : '-';
                     html += `<td>${lead}</td>`;
                 } else if (currentTab === 'priceEscalation') {
-                    let variance = row['PRICE VARIANCE'] !== undefined ? row['PRICE VARIANCE'].toFixed(2) + '%' : '-';
+                    let val = row['PRICE VARIANCE'];
+                    let variance = '-';
+                    if (val !== undefined) {
+                        let sign = val > 0 ? '+' : '';
+                        variance = sign + val.toFixed(2) + '%';
+                    }
                     html += `<td>${variance}</td>`;
                 }
                 html += `</tr>`;
@@ -633,8 +638,15 @@
                 yAxisCallback = function(value) { return '$' + value.toLocaleString(); };
                 tooltipCallback = function(context) { return context.dataset.label + ': $' + context.parsed.y.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
             } else if (currentTab === 'priceEscalation') {
-                yAxisCallback = function(value) { return value + '%'; };
-                tooltipCallback = function(context) { return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%'; };
+                yAxisCallback = function(value) { 
+                    let sign = value > 0 ? '+' : '';
+                    return sign + value + '%'; 
+                };
+                tooltipCallback = function(context) { 
+                    let val = context.parsed.y;
+                    let sign = val > 0 ? '+' : '';
+                    return context.dataset.label + ': ' + sign + val.toFixed(2) + '%'; 
+                };
             } else if (currentTab === 'leadTimes') {
                 tooltipCallback = function(context) { return context.dataset.label + ': ' + Math.round(context.parsed.y) + ' Weeks'; };
             }
@@ -679,7 +691,10 @@
                             font: { weight: 'bold', size: 11 },
                             formatter: function(value, context) {
                                 if (currentTab === 'unitPricing') return '$' + value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                                if (currentTab === 'priceEscalation') return value.toFixed(2) + '%';
+                                if (currentTab === 'priceEscalation') {
+                                    let sign = value > 0 ? '+' : '';
+                                    return sign + value.toFixed(2) + '%';
+                                }
                                 if (currentTab === 'leadTimes') return Math.round(value) + ' Wks'; 
                             }
                         },
@@ -688,7 +703,11 @@
                     },
                     scales: {
                         x: { offset: true },
-                        y: { beginAtZero: true, ticks: { callback: yAxisCallback } }
+                        y: { 
+                            beginAtZero: true, 
+                            grace: currentTab === 'unitPricing' ? '5%' : '25%',
+                            ticks: { callback: yAxisCallback } 
+                        }
                     }
                 }
             });
@@ -824,7 +843,10 @@
             let tooltipCallback = function(context) { 
                 let val = context.parsed.y;
                 if (currentTab === 'unitPricing') return context.dataset.label + ' Avg: $' + val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                if (currentTab === 'priceEscalation') return context.dataset.label + ': ' + val.toFixed(2) + '%';
+                if (currentTab === 'priceEscalation') {
+                    let sign = val > 0 ? '+' : '';
+                    return context.dataset.label + ': ' + sign + val.toFixed(2) + '%';
+                }
                 if (currentTab === 'leadTimes') return context.dataset.label + ': ' + Math.round(val) + ' Weeks';
                 return val;
             };
@@ -832,7 +854,10 @@
             if (currentTab === 'unitPricing') {
                 yAxisCallback = function(value) { return '$' + value.toLocaleString(); };
             } else if (currentTab === 'priceEscalation') {
-                yAxisCallback = function(value) { return value + '%'; };
+                yAxisCallback = function(value) { 
+                    let sign = value > 0 ? '+' : '';
+                    return sign + value + '%'; 
+                };
             }
 
             myTrendChart = new Chart(ctx, {
@@ -847,12 +872,20 @@
                         legend: { 
                             display: true, 
                             position: 'top',
-                            labels: { usePointStyle: true, boxWidth: 8 }
+                            labels: { 
+                                usePointStyle: true, 
+                                boxWidth: 8,
+                                pointStyle: 'circle' // Forces a solid circle globally in the legend
+                            }
                         },
                         tooltip: { callbacks: { label: tooltipCallback } }
                     },
                     scales: {
-                        y: { beginAtZero: true, ticks: { callback: yAxisCallback } }
+                        y: { 
+                            beginAtZero: true, 
+                            grace: currentTab === 'unitPricing' ? '5%' : '25%',
+                            ticks: { callback: yAxisCallback } 
+                        }
                     }
                 }
             });
