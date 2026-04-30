@@ -20,6 +20,8 @@
         .section-container { margin-bottom: 40px; }
         .section-container h3 { color: #0033a0; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 15px; }
         
+        .instruction-note { background: #eff6ff; border-left: 4px solid #0033a0; padding: 12px 16px; margin-bottom: 20px; border-radius: 0 4px 4px 0; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
+        
         .form-group { margin-bottom: 20px; }
         .form-group.flex-row { display: flex; align-items: center; gap: 20px; border-bottom: 1px solid #f3f4f6; padding-bottom: 15px; position: relative; }
         .form-group.flex-row:last-child { border-bottom: none; }
@@ -30,17 +32,12 @@
         
         label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 14px; }
         input, select { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
-        input:focus, select:focus { border-color: #0033a0; outline: none; box-shadow: 0 0 0 2px rgba(0,51,160,0.1); }
+        input:focus, select:focus, textarea:focus { border-color: #0033a0; outline: none; box-shadow: 0 0 0 2px rgba(0,51,160,0.1); }
         
         /* Hide number input spinners (arrows) */
         input[type="number"]::-webkit-outer-spin-button,
-        input[type="number"]::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-        input[type="number"] {
-            -moz-appearance: textfield;
-        }
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
 
         .input-group { display: flex; align-items: center; background: #fff; border: 1px solid #d1d5db; border-radius: 4px; overflow: hidden; margin-top: 5px; width: 100%; }
         .input-group-addon { background: #f3f4f6; padding: 10px 12px; color: #6b7280; font-size: 13px; font-weight: bold; white-space: nowrap; }
@@ -145,6 +142,9 @@
             // SECTION 1: UNIT PRICING
             html += `<div class="section-container">`;
             html += `<h3>Current Unit Pricing</h3>`;
+            if (data.unitPricing.note) {
+                html += `<div class="instruction-note"><strong>Instructions:</strong><br>${data.unitPricing.note}</div>`;
+            }
             if (data.unitPricing.items.length === 0) {
                 html += `<p>No unit pricing items found for this package.</p>`;
             } else {
@@ -178,6 +178,9 @@
             // SECTION 2: LEAD TIMES
             html += `<div class="section-container">`;
             html += `<h3>Material Lead Times</h3>`;
+            if (data.leadTimes.note) {
+                html += `<div class="instruction-note"><strong>Instructions:</strong><br>${data.leadTimes.note}</div>`;
+            }
             if (data.leadTimes.items.length === 0) {
                 html += `<p>No lead time items found.</p>`;
             } else {
@@ -205,7 +208,12 @@
             // SECTION 3: PRICE ESCALATION
             html += `<div class="section-container">`;
             html += `<h3>Projected Price Variance</h3>`;
-            html += `<p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">Projected percentage variance for next quarter.</p>`;
+            if (data.priceEscalation.note) {
+                html += `<div class="instruction-note"><strong>Instructions:</strong><br>${data.priceEscalation.note}</div>`;
+            } else {
+                html += `<p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">Projected percentage variance for next quarter.</p>`;
+            }
+            
             if (data.priceEscalation.items.length === 0) {
                 html += `<p>No escalation items found.</p>`;
             } else {
@@ -230,24 +238,25 @@
             html += `<button type="button" class="btn-add" onclick="addCustomItem('escalation')">+ Add Custom Item</button>`;
             html += `</div>`;
 
-            // SECTION 4: MARKET SENTIMENT
+            // SECTION 4: MARKET SENTIMENT (Sleek Block Layout)
             html += `<div class="section-container">`;
             html += `<h3>Market Sentiment</h3>`;
-            html += `<p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">Please share your thoughts on market conditions, supply chain issues, or general sentiment.</p>`;
+            if (data.marketSentiment.note) {
+                html += `<div class="instruction-note"><strong>Instructions:</strong><br>${data.marketSentiment.note}</div>`;
+            } else {
+                html += `<p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">Please share your thoughts on market conditions, supply chain issues, or general sentiment.</p>`;
+            }
+            
             if (!data.marketSentiment || data.marketSentiment.items.length === 0) {
                 html += `<p>No sentiment topics listed.</p>`;
             } else {
                 data.marketSentiment.items.forEach((row, i) => {
                     html += `
-                    <div class="form-group flex-row">
-                        <div class="details">
-                            <label><strong>${row['ITEM']}</strong></label>
-                        </div>
-                        <div class="input-area" style="width: 100%; flex: 2;">
-                            <textarea name="sentiment_${i}" placeholder="Enter comments here..." style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; resize: vertical; min-height: 60px; font-family: inherit; font-size: 14px; outline: none;"></textarea>
-                            <input type="hidden" name="sentimentItem_${i}" value="${row['ITEM']}">
-                            <input type="hidden" name="sentimentPackage_${i}" value="${row['BID PACKAGE']}">
-                        </div>
+                    <div class="form-group" style="background: #fff; padding: 18px; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                        <label style="display: block; font-size: 15px; color: #111827; margin-bottom: 12px; font-weight: 600;">${row['ITEM']}</label>
+                        <textarea name="sentiment_${i}" placeholder="Enter your response here..." style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; resize: vertical; min-height: 80px; font-family: inherit; font-size: 14px; outline: none; box-sizing: border-box;"></textarea>
+                        <input type="hidden" name="sentimentItem_${i}" value="${row['ITEM']}">
+                        <input type="hidden" name="sentimentPackage_${i}" value="${row['BID PACKAGE']}">
                     </div>`;
                 });
             }
@@ -313,14 +322,11 @@
                 </div>`;
             } else if (type === 'sentiment') {
                 html = `
-                <div class="form-group flex-row custom-item-row" style="border-left: 3px solid #0033a0;">
-                    <button type="button" class="btn-delete" onclick="this.closest('.custom-item-row').remove()">✖</button>
-                    <div class="details" style="margin-top: 5px;">
-                        <input type="text" name="customSentimentName_${count}" placeholder="Custom Topic/Question">
-                    </div>
-                    <div class="input-area" style="width: 100%; flex: 2;">
-                        <textarea name="customSentiment_${count}" placeholder="Enter comments here..." style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; resize: vertical; min-height: 60px; font-family: inherit; font-size: 14px; outline: none;"></textarea>
-                    </div>
+                <div class="form-group custom-item-row" style="border-left: 3px solid #0033a0; padding: 18px; background: #f9fafb; border-radius: 6px; margin-bottom: 15px; position: relative;">
+                    <button type="button" class="btn-delete" onclick="this.closest('.custom-item-row').remove()" style="position: absolute; top: 10px; right: 10px; transform: none;">✖</button>
+                    <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 5px; font-weight: bold; text-transform: uppercase;">Custom Topic / Question</label>
+                    <input type="text" name="customSentimentName_${count}" placeholder="E.g., Supply chain delays..." style="margin-bottom: 12px; width: calc(100% - 30px); display: block;">
+                    <textarea name="customSentiment_${count}" placeholder="Enter comments here..." style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; resize: vertical; min-height: 80px; font-family: inherit; font-size: 14px; outline: none; box-sizing: border-box;"></textarea>
                 </div>`;
             }
             container.insertAdjacentHTML('beforeend', html);
