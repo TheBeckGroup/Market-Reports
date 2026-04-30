@@ -141,7 +141,7 @@
 
             // SECTION 1: UNIT PRICING
             html += `<div class="section-container">`;
-            html += `<h3>Current Unit Pricing</h3>`;
+            html += `<h3>Unit Pricing</h3>`;
             if (data.unitPricing.note) {
                 html += `<div class="instruction-note">${data.unitPricing.note}</div>`;
             }
@@ -172,7 +172,7 @@
                 });
             }
             html += `<div id="custom-unit-items"></div>`;
-            html += `<button type="button" class="btn-add" onclick="addCustomItem('unit')">+ Add Custom Item</button>`;
+            html += `<button type="button" class="btn-add" onclick="addCustomItem('unit')">+ Add Item</button>`;
             html += `</div>`;
 
             // SECTION 2: LEAD TIMES
@@ -202,12 +202,12 @@
                 });
             }
             html += `<div id="custom-lead-items"></div>`;
-            html += `<button type="button" class="btn-add" onclick="addCustomItem('lead')">+ Add Custom Item</button>`;
+            html += `<button type="button" class="btn-add" onclick="addCustomItem('lead')">+ Add Item</button>`;
             html += `</div>`;
 
             // SECTION 3: PRICE ESCALATION
             html += `<div class="section-container">`;
-            html += `<h3>Projected Price Variance</h3>`;
+            html += `<h3>Price Escalation</h3>`;
             if (data.priceEscalation.note) {
                 html += `<div class="instruction-note">${data.priceEscalation.note}</div>`;
             } else {
@@ -235,7 +235,7 @@
                 });
             }
             html += `<div id="custom-escalation-items"></div>`;
-            html += `<button type="button" class="btn-add" onclick="addCustomItem('escalation')">+ Add Custom Item</button>`;
+            html += `<button type="button" class="btn-add" onclick="addCustomItem('escalation')">+ Add Item</button>`;
             html += `</div>`;
 
             // SECTION 4: MARKET SENTIMENT
@@ -261,7 +261,7 @@
                 });
             }
             html += `<div id="custom-sentiment-items"></div>`;
-            html += `<button type="button" class="btn-add" onclick="addCustomItem('sentiment')">+ Add Custom Quote/Comment</button>`;
+            html += `<button type="button" class="btn-add" onclick="addCustomItem('sentiment')">+ Add Item</button>`;
             html += `</div>`;
 
             container.innerHTML = html;
