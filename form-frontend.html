@@ -238,7 +238,7 @@
             html += `<button type="button" class="btn-add" onclick="addCustomItem('escalation')">+ Add Custom Item</button>`;
             html += `</div>`;
 
-            // SECTION 4: MARKET SENTIMENT (Sleek Block Layout)
+            // SECTION 4: MARKET SENTIMENT
             html += `<div class="section-container">`;
             html += `<h3>Market Sentiment</h3>`;
             if (data.marketSentiment.note) {
@@ -396,37 +396,39 @@
                         'RESPONSE': value
                     });
                 }
+                
                 // Custom Items dynamically pushed to their respective sections
-                else if (key.startsWith('customUnitName_')) {
+                // Triggered off the actual value inputs to ensure they aren't skipped if the user forgets to type a custom name!
+                else if (key.startsWith('customUnitPriceLow_')) {
                     const idx = key.split('_')[1];
                     data.unitPricing.push({
                         'BID PACKAGE': data.bidPackage,
-                        'ITEM': value + " (Custom)",
+                        'ITEM': (formData.get(`customUnitName_${idx}`) || "Custom Item") + " (Custom)",
                         'UNIT OF MEASURE': formData.get(`customUnitUOM_${idx}`) || "LS",
-                        'LOW RANGE': formData.get(`customUnitPriceLow_${idx}`),
-                        'HIGH RANGE': formData.get(`customUnitPriceHigh_${idx}`) || formData.get(`customUnitPriceLow_${idx}`),
-                        'SUBMITTED PRICE': formData.get(`customUnitPriceLow_${idx}`)
+                        'LOW RANGE': value,
+                        'HIGH RANGE': formData.get(`customUnitPriceHigh_${idx}`) || value,
+                        'SUBMITTED PRICE': value
                     });
-                } else if (key.startsWith('customLeadName_')) {
+                } else if (key.startsWith('customLeadTime_')) {
                     const idx = key.split('_')[1];
                     data.leadTimes.push({
                         'BID PACKAGE': data.bidPackage,
-                        'ITEM': value + " (Custom)",
-                        'SUBMITTED LEAD TIME': formData.get(`customLeadTime_${idx}`)
+                        'ITEM': (formData.get(`customLeadName_${idx}`) || "Custom Item") + " (Custom)",
+                        'SUBMITTED LEAD TIME': value
                     });
-                } else if (key.startsWith('customEscalationName_')) {
+                } else if (key.startsWith('customEscalation_')) {
                     const idx = key.split('_')[1];
                     data.priceEscalation.push({
                         'BID PACKAGE': data.bidPackage,
-                        'ITEM': value + " (Custom)",
-                        'SUBMITTED VARIANCE': formData.get(`customEscalation_${idx}`)
+                        'ITEM': (formData.get(`customEscalationName_${idx}`) || "Custom Item") + " (Custom)",
+                        'SUBMITTED VARIANCE': value
                     });
-                } else if (key.startsWith('customSentimentName_')) {
+                } else if (key.startsWith('customSentiment_')) {
                     const idx = key.split('_')[1];
                     data.marketSentiment.push({
                         'BID PACKAGE': data.bidPackage,
-                        'ITEM': value + " (Custom)",
-                        'RESPONSE': formData.get(`customSentiment_${idx}`)
+                        'ITEM': (formData.get(`customSentimentName_${idx}`) || "Custom Topic") + " (Custom)",
+                        'RESPONSE': value
                     });
                 }
             }
